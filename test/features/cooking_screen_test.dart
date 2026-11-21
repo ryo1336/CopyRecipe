@@ -1,6 +1,5 @@
 import 'package:copy_recipe/features/cooking/cooking_screen.dart';
 import 'package:copy_recipe/features/cooking/cooking_settings.dart';
-import 'package:copy_recipe/features/cooking/step_mode_screen.dart';
 import 'package:copy_recipe/models/ingredient.dart';
 import 'package:copy_recipe/models/recipe_step.dart';
 import 'package:copy_recipe/parser/chapters.dart';
@@ -104,28 +103,10 @@ void main() {
     expect(find.text('材料をコピーしました'), findsOneWidget);
   });
 
-  testWidgets('工程がなければ案内を出し、編集画面へ移れる。ステップモードは出さない', (tester) async {
+  testWidgets('工程がなければ案内を出す', (tester) async {
     await pumpScreen(tester, videoId: 'nosteps0000');
 
     expect(find.text('工程が見つかりませんでした'), findsOneWidget);
-    expect(find.text('ステップモードで開始'), findsNothing);
-    await tester.tap(find.text('編集して追加'));
-    await tester.pumpAndSettle();
-    expect(find.text('レシピを編集'), findsOneWidget);
-  });
-
-  testWidgets('ステップモードは、まだチェックしていない最初の工程から始まる', (tester) async {
-    await pumpScreen(tester);
-    await tester.tap(find.text('大根を切る'));
-    await tester.pump();
-
-    await tester.tap(find.text('ステップモードで開始'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(StepModeScreen), findsOneWidget);
-    expect(find.text('手順 2 / 2'), findsOneWidget);
-    // ステップモードの下でも画面のスリープは止めたまま
-    expect(env.screenAwake.enabled, isTrue);
   });
 
   testWidgets('文字サイズを変えると表示に反映され、設定が保存される', (tester) async {
@@ -152,22 +133,6 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     expect(env.screenAwake.enabled, isFalse);
-  });
-
-  testWidgets('編集して材料が変わったら、チェックは外れる', (tester) async {
-    await pumpScreen(tester);
-    await tester.tap(find.text('豚バラ肉'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_box), findsOneWidget);
-
-    await tester.tap(find.byTooltip('レシピを編集'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, '材料'), '鶏肉 300g');
-    await tester.tap(find.byTooltip('保存'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('鶏肉'), findsOneWidget);
-    expect(find.byIcon(Icons.check_box), findsNothing);
   });
 
   testWidgets('工程番号が2桁でも、大きな文字で折り返さない', (tester) async {

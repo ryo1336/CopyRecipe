@@ -21,8 +21,6 @@ bool isNumberedStepLine(String line) => _strictNumbered.hasMatch(line.trim());
 ///   （最初の番号付きの行より前にある行は、下ごしらえなどの独立した工程にする）
 /// - 番号付きの行がなければ、1行を1工程とする
 /// - 行頭（または行末）にタイムスタンプがあれば、その工程の開始時刻にする
-///
-/// 抽出処理と編集画面の両方から使う。
 List<RecipeStep> parseStepLines(List<String> lines) {
   final texts = lines.map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
   final hasNumbered = texts.any(

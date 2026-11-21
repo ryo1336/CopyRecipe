@@ -4,9 +4,7 @@ import '../data/app_exception.dart';
 import '../data/recipe_repository.dart';
 import '../data/youtube_api.dart';
 import '../data/youtube_url.dart';
-import '../models/ingredient.dart';
 import '../models/recipe.dart';
-import '../models/recipe_step.dart';
 import '../parser/recipe_parser.dart';
 
 final recipesProvider = NotifierProvider<RecipesNotifier, List<Recipe>>(
@@ -122,46 +120,6 @@ class RecipesNotifier extends Notifier<List<Recipe>> {
       noRecipe: noRecipe,
       singleVideoId: toSave.length == 1 ? toSave.first.videoId : null,
     );
-  }
-
-  /// 利用者が編集した材料・工程・人数を保存する。
-  ///
-  /// 以後、抽出処理の改良による自動の再抽出では上書きしない（isEdited）。
-  Future<void> saveEdited(
-    String videoId, {
-    required List<Ingredient> ingredients,
-    required List<RecipeStep> steps,
-    required String? servings,
-  }) async {
-    final existing = _repo.get(videoId);
-    if (existing == null) return;
-    await _repo.put(
-      existing.withParsedContent(
-        ingredients: ingredients,
-        steps: steps,
-        servings: servings,
-        parserVersion: kParserVersion,
-        isEdited: true,
-      ),
-    );
-    state = _repo.all();
-  }
-
-  /// 手で直した内容を捨て、概要欄の原文から抽出し直す
-  Future<void> resetToExtracted(String videoId) async {
-    final existing = _repo.get(videoId);
-    if (existing == null) return;
-    final parsed = parseRecipe(existing.rawDescription);
-    await _repo.put(
-      existing.withParsedContent(
-        ingredients: parsed.ingredients,
-        steps: parsed.steps,
-        servings: parsed.servings,
-        parserVersion: kParserVersion,
-        isEdited: false,
-      ),
-    );
-    state = _repo.all();
   }
 
   Future<void> delete(String videoId) async {

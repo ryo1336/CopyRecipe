@@ -7,12 +7,10 @@ import '../../models/recipe_step.dart';
 import '../../parser/chapters.dart';
 import '../../parser/serialize.dart';
 import '../../providers/recipes_provider.dart';
-import '../recipe_edit/recipe_edit_screen.dart';
 import 'cooking_checks.dart';
 import 'cooking_settings.dart';
 import 'cooking_widgets.dart';
 import 'platform_services.dart';
-import 'step_mode_screen.dart';
 
 /// 料理中に見る画面。材料と作り方を1画面に並べる
 class CookingScreen extends ConsumerStatefulWidget {
@@ -30,8 +28,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
   @override
   void initState() {
     super.initState();
-    // 料理中に画面が消えないよう、開いている間はスリープを止める。
-    // ステップモードや編集画面はこの画面の上に重なるので、そこでも効き続ける
+    // 料理中に画面が消えないよう、開いている間はスリープを止める
     _screenAwake = ref.read(screenAwakeProvider);
     _screenAwake.enable();
   }
@@ -51,31 +48,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('材料をコピーしました')));
     }
-  }
-
-  void _openEditor() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RecipeEditScreen(videoId: widget.videoId),
-      ),
-    );
-  }
-
-  void _startStepMode(Recipe recipe) {
-    // 前回の続きから始められるよう、まだチェックしていない最初の工程を開く
-    final done = ref.read(cookingChecksProvider(widget.videoId)).steps;
-    final first = List.generate(
-      recipe.steps.length,
-      (i) => i,
-    ).where((i) => !done.contains(i)).firstOrNull;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            StepModeScreen(videoId: widget.videoId, initialStep: first ?? 0),
-      ),
-    );
   }
 
   @override
@@ -125,11 +97,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
               tooltip: 'すべてのチェックを外す',
               onPressed: checksNotifier.reset,
             ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'レシピを編集',
-            onPressed: _openEditor,
-          ),
         ],
       ),
       body: CookingTextScale(
@@ -159,7 +126,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
               _NotFound(
                 message: '材料が見つかりませんでした',
                 styles: styles,
-                onEdit: _openEditor,
               )
             else
               IngredientChecklist(
@@ -174,7 +140,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
               _NotFound(
                 message: '工程が見つかりませんでした',
                 styles: styles,
-                onEdit: _openEditor,
               )
             else
               for (final (i, step) in recipe.steps.indexed)
@@ -208,26 +173,11 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: recipe.steps.isEmpty
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: FilledButton.icon(
-                  onPressed: () => _startStepMode(recipe),
-                  icon: const Icon(Icons.slideshow),
-                  label: const Text('ステップモードで開始'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
-                ),
-              ),
-            ),
     );
   }
 }
 
-/// 動画を開く。開けなければ通知を出す（料理中画面とステップモードで共通）
+/// 動画を開く。開けなければ通知を出す
 Future<void> openVideo(
   BuildContext context,
   WidgetRef ref,
@@ -377,12 +327,10 @@ class _NotFound extends StatelessWidget {
   const _NotFound({
     required this.message,
     required this.styles,
-    required this.onEdit,
   });
 
   final String message;
   final CookingStyles styles;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -394,12 +342,8 @@ class _NotFound extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(message, style: styles.body),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit),
-              label: const Text('編集して追加'),
-            ),
+            const SizedBox(height: 4),
+            Text('下の「概要欄の全文」や動画で確認してください', style: styles.caption),
           ],
         ),
       ),
