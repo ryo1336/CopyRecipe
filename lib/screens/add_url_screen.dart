@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/video_provider.dart';
+import '../data/app_exception.dart';
+import '../providers/recipes_provider.dart';
 
 class AddUrlScreen extends ConsumerStatefulWidget {
-  final VoidCallback? onAdded;
+  /// 登録が終わったときに呼ぶ。1本だけ登録した場合はその動画 ID を渡す
+  final void Function(String? singleVideoId)? onAdded;
 
   const AddUrlScreen({super.key, this.onAdded});
 
@@ -27,25 +29,28 @@ class _AddUrlScreenState extends ConsumerState<AddUrlScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await ref.read(videoProvider.notifier).extractVideoFromUrl(url);
+      final result = await ref.read(recipesProvider.notifier).addFromUrl(url);
       if (mounted) {
         _urlController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('レシピを追加しました')),
+          SnackBar(content: Text(result.message)),
         );
-        widget.onAdded?.call();
+        widget.onAdded?.call(result.singleVideoId);
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('エラー: ${e.toString()}')),
-        );
-      }
+    } on AppException catch (e) {
+      _showError(e.message);
+    } catch (_) {
+      _showError('予期しないエラーが発生しました');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

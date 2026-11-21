@@ -1,10 +1,10 @@
-import 'package:copy_recipe/models/video_model.dart';
+import 'package:copy_recipe/models/recipe.dart';
 import 'package:copy_recipe/screens/add_url_screen.dart';
 import 'package:copy_recipe/screens/recipe_screen.dart';
 import 'package:copy_recipe/widgets/recipe_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/video_provider.dart';
+import '../providers/recipes_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -16,29 +16,31 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
 
-  void _switchToRecipeList() {
+  void _openRecipe(String videoId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RecipeScreen(videoId: videoId)),
+    );
+  }
+
+  /// 登録後は一覧に戻り、1本だけ登録した場合はそのレシピを開く
+  void _onAdded(String? singleVideoId) {
     setState(() => _currentIndex = 0);
+    if (singleVideoId != null) _openRecipe(singleVideoId);
   }
 
   @override
   Widget build(BuildContext context) {
-    final videoLists = ref.watch(videoProvider);
+    final recipes = ref.watch(recipesProvider);
 
-    final recipeListBody = videoLists.isNotEmpty
+    final recipeListBody = recipes.isNotEmpty
         ? ListView.builder(
-            itemCount: videoLists.length,
+            itemCount: recipes.length,
             itemBuilder: (context, index) {
-              final Video video = videoLists[index];
+              final Recipe recipe = recipes[index];
               return RecipeTile(
-                video: video,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RecipeScreen(video: video),
-                    ),
-                  );
-                },
+                recipe: recipe,
+                onTap: () => _openRecipe(recipe.videoId),
               );
             },
           )
@@ -49,13 +51,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        title: const Text('Copy Recipe'),
         backgroundColor: Colors.amber,
       ),
       body: IndexedStack(
         index: _currentIndex,
         children: [
           recipeListBody,
-          AddUrlScreen(onAdded: _switchToRecipeList),
+          AddUrlScreen(onAdded: _onAdded),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
