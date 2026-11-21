@@ -26,7 +26,8 @@ class YoutubeVideo {
 
   /// videos API の item から作る
   factory YoutubeVideo.fromVideoItem(Map<String, dynamic> item) {
-    final snippet = (item['snippet'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final snippet =
+        (item['snippet'] as Map?)?.cast<String, dynamic>() ?? const {};
     return YoutubeVideo(
       id: item['id'] as String,
       title: snippet['title'] as String? ?? '',
@@ -57,8 +58,8 @@ class YoutubeApi {
     required http.Client client,
     required String apiKey,
     this.timeout = defaultTimeout,
-  })  : _client = client,
-        _apiKey = apiKey;
+  }) : _client = client,
+       _apiKey = apiKey;
 
   final http.Client _client;
   final String _apiKey;
@@ -95,7 +96,9 @@ class YoutubeApi {
       });
       final items = (data['items'] as List?) ?? const [];
       result.addAll(
-        items.map((e) => YoutubeVideo.fromVideoItem((e as Map).cast<String, dynamic>())),
+        items.map(
+          (e) => YoutubeVideo.fromVideoItem((e as Map).cast<String, dynamic>()),
+        ),
       );
     }
     // API の返す順ではなく、指定した順に並べる
@@ -127,7 +130,10 @@ class YoutubeApi {
     return ids.take(maxPlaylistVideos).toList();
   }
 
-  Future<Map<String, dynamic>> _get(String path, Map<String, String> params) async {
+  Future<Map<String, dynamic>> _get(
+    String path,
+    Map<String, String> params,
+  ) async {
     final url = Uri.https(_host, path, {...params, 'key': _apiKey});
     final http.Response response;
     try {

@@ -24,7 +24,9 @@ final _amountLike = RegExp(
 );
 
 /// 材料名と分量を明示的に区切る記号（「…」「・・」「..」「:」など）
-final _explicitSeparator = RegExp(r'\s*(?:…+|‥+|・{2,}|\.{2,}|-{2,}|ー{2,}|─+|:)\s*');
+final _explicitSeparator = RegExp(
+  r'\s*(?:…+|‥+|・{2,}|\.{2,}|-{2,}|ー{2,}|─+|:)\s*',
+);
 
 /// 行頭の箇条書き記号（グループの意味を持たないもの）
 final _plainBullet = RegExp(r'^[・●○■□◆♦◉\-*•▪︎✓✔]+\s*');
@@ -117,7 +119,10 @@ List<Ingredient> parseIngredientLines(List<String> lines) {
       }
     }
 
-    final ingredient = parseIngredientLine(line, group: lineGroup ?? currentGroup);
+    final ingredient = parseIngredientLine(
+      line,
+      group: lineGroup ?? currentGroup,
+    );
     if (ingredient == null) continue;
     result.add(ingredient);
     if (lineGroup == null) groupHasItems = true;

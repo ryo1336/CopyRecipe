@@ -36,7 +36,8 @@ List<RecipeStep> parseStepLines(List<String> lines) {
       continue;
     }
 
-    final numbered = _strictNumbered.firstMatch(text) ?? _looseNumbered.firstMatch(text);
+    final numbered =
+        _strictNumbered.firstMatch(text) ?? _looseNumbered.firstMatch(text);
     if (numbered != null) {
       seenNumbered = true;
       steps.add(_StepBuilder(text.substring(numbered.end).trim(), null));
@@ -123,7 +124,9 @@ List<RecipeStep> mergeStepsWithChapters(
       }
     }
     if (bestIndex >= 0) {
-      result.add(RecipeStep(text: step.text, startSeconds: usable[bestIndex].seconds));
+      result.add(
+        RecipeStep(text: step.text, startSeconds: usable[bestIndex].seconds),
+      );
       from = bestIndex + 1;
     } else {
       result.add(step);
