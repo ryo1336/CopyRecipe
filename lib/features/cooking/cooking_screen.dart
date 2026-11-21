@@ -24,6 +24,11 @@ class CookingScreen extends ConsumerStatefulWidget {
 
 class _CookingScreenState extends ConsumerState<CookingScreen> {
   late final ScreenAwake _screenAwake;
+  final _scroll = ScrollController();
+
+  /// 本文の大きなタイトルが隠れたら、上のバーにタイトルを出す
+  bool _showBarTitle = false;
+  static const _barTitleOffset = 80.0;
 
   @override
   void initState() {
@@ -31,11 +36,16 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
     // 料理中に画面が消えないよう、開いている間はスリープを止める
     _screenAwake = ref.read(screenAwakeProvider);
     _screenAwake.enable();
+    _scroll.addListener(() {
+      final show = _scroll.offset > _barTitleOffset;
+      if (show != _showBarTitle) setState(() => _showBarTitle = show);
+    });
   }
 
   @override
   void dispose() {
     _screenAwake.disable();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -69,6 +79,18 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // 最初は本文の大きなタイトルと重なるので見せず、スクロールしたら出す。
+        // 読み上げでは常に画面の名前として読めるようにしておく
+        title: AnimatedOpacity(
+          opacity: _showBarTitle ? 1 : 0,
+          duration: const Duration(milliseconds: 150),
+          alwaysIncludeSemantics: true,
+          child: Text(
+            recipe.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         actions: [
           PopupMenuButton<CookingFontSize>(
             icon: const Icon(Icons.format_size),
@@ -99,6 +121,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
       ),
       body: CookingTextScale(
         child: ListView(
+          controller: _scroll,
           // 下のボタンがなくなり本文が画面の下端まで届くので、
           // ホームインジケーターなどの安全領域の分も余白に足す
           padding: EdgeInsets.fromLTRB(

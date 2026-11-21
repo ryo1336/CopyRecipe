@@ -221,8 +221,8 @@ class _IngredientRow extends StatelessWidget {
 ///
 /// 分量を右端にそろえ、間を点線でつなぐ。行ごとに分量の位置がばらつかないので、
 /// 離れた場所からでも材料名から分量へ目で追える。
-/// 材料名は行の幅の 42%、分量は 50% までで折り返し、残りをすべて点線にする
-/// （Flexible で幅を分けると、材料名が使わなかった分が行末の空白になり、分量が右端にそろわない）。
+/// 材料名と分量の実際の幅を測って割り当てる（[splitNameAndAmount]）ので、
+/// 収まるときは折り返さず、残りはすべて点線になる。
 class _NameAndAmount extends StatelessWidget {
   const _NameAndAmount({
     required this.name,
@@ -234,32 +234,83 @@ class _NameAndAmount extends StatelessWidget {
   final String amount;
   final CookingStyles styles;
 
+  static const _gap = 8.0;
+
+  /// 1行で書いたときの幅（端数で折り返さないよう切り上げる）
+  static double _measure(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: DefaultTextStyle.of(context).style.merge(style),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width.ceilToDouble() + 1;
+    painter.dispose();
+    return width;
+  }
+
   @override
   Widget build(BuildContext context) {
     final dotColor = Theme.of(context).colorScheme.outlineVariant;
     return LayoutBuilder(
-      builder: (context, constraints) => Row(
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.42),
-            child: Text(name, style: styles.body),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: CustomPaint(
-              size: const Size.fromHeight(4),
-              painter: _DotLeaderPainter(dotColor),
+      builder: (context, constraints) {
+        final (nameWidth, amountWidth) = splitNameAndAmount(
+          available: constraints.maxWidth - _gap * 2 - minDotLeaderWidth,
+          nameWidth: _measure(context, name, styles.body),
+          amountWidth: _measure(context, amount, styles.amount),
+        );
+        return Row(
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: nameWidth),
+              child: Text(name, style: styles.body),
             ),
-          ),
-          const SizedBox(width: 8),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.5),
-            child: Text(amount, style: styles.amount, textAlign: TextAlign.end),
-          ),
-        ],
-      ),
+            const SizedBox(width: _gap),
+            Expanded(
+              child: CustomPaint(
+                size: const Size.fromHeight(4),
+                painter: _DotLeaderPainter(dotColor),
+              ),
+            ),
+            const SizedBox(width: _gap),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: amountWidth),
+              child: Text(
+                amount,
+                style: styles.amount,
+                textAlign: TextAlign.end,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
+}
+
+/// 点線に最低限残す幅
+const minDotLeaderWidth = 12.0;
+
+/// 材料名と分量に割り当てる最大の幅を決める。
+///
+/// - 両方が [available] に収まるなら、どちらも1行の幅のまま（残りは点線）
+/// - 収まらなければ分量を優先し、材料名の残りを分量に回す。
+///   ただし分量が長すぎて材料名が潰れないよう、分量は最低でも半分までは取れるようにする
+/// - 2つの合計は [available] を超えないので、狭い画面でも行からはみ出さない
+@visibleForTesting
+(double, double) splitNameAndAmount({
+  required double available,
+  required double nameWidth,
+  required double amountWidth,
+}) {
+  final space = available < 0 ? 0.0 : available;
+  if (nameWidth + amountWidth <= space) return (nameWidth, amountWidth);
+  final rest = space - nameWidth;
+  final amount = amountWidth.clamp(0.0, rest > space / 2 ? rest : space / 2);
+  return (space - amount, amount);
 }
 
 class _DotLeaderPainter extends CustomPainter {

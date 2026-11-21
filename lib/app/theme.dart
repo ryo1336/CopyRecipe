@@ -16,7 +16,6 @@ ThemeData buildTheme(Brightness brightness) {
   );
   return ThemeData(
     colorScheme: scheme,
-    scaffoldBackgroundColor: scheme.surface,
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
@@ -40,12 +39,16 @@ ThemeData buildTheme(Brightness brightness) {
       backgroundColor: scheme.primary,
       foregroundColor: scheme.onPrimary,
     ),
+    // 普段は枠線なしの塗りつぶしにし、フォーカス中とエラーのときだけ枠線で知らせる
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: scheme.surfaceContainerHighest,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+      border: _inputBorder(BorderSide.none),
+      enabledBorder: _inputBorder(BorderSide.none),
+      focusedBorder: _inputBorder(BorderSide(color: scheme.primary, width: 2)),
+      errorBorder: _inputBorder(BorderSide(color: scheme.error)),
+      focusedErrorBorder: _inputBorder(
+        BorderSide(color: scheme.error, width: 2),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -57,3 +60,8 @@ ThemeData buildTheme(Brightness brightness) {
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
 }
+
+OutlineInputBorder _inputBorder(BorderSide side) => OutlineInputBorder(
+  borderRadius: BorderRadius.circular(12),
+  borderSide: side,
+);

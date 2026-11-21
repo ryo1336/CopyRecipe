@@ -1,5 +1,6 @@
 import 'package:copy_recipe/features/cooking/cooking_screen.dart';
 import 'package:copy_recipe/features/cooking/cooking_settings.dart';
+import 'package:copy_recipe/features/cooking/cooking_widgets.dart';
 import 'package:copy_recipe/models/ingredient.dart';
 import 'package:copy_recipe/models/recipe_step.dart';
 import 'package:copy_recipe/parser/chapters.dart';
@@ -17,6 +18,13 @@ void main() {
       sampleRecipe(),
       sampleRecipe(id: 'nosteps0000', steps: const []),
       sampleRecipe(id: 'noingredien', ingredients: const []),
+      sampleRecipe(
+        id: 'longamount0',
+        ingredients: const [
+          Ingredient(name: 'みりん', amount: '各 大さじ3ずつ'),
+          Ingredient(name: '豚バラ肉', amount: '200g'),
+        ],
+      ),
       sampleRecipe(
         id: 'manysteps00',
         steps: [for (var i = 1; i <= 12; i++) RecipeStep(text: '工程$i')],
@@ -152,6 +160,79 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     expect(env.screenAwake.enabled, isFalse);
+  });
+
+  testWidgets('分量は行の右端にそろう', (tester) async {
+    await pumpScreen(tester);
+
+    double right(String text) => tester.getTopRight(find.text(text).first).dx;
+    expect(right('1/3本'), right('200g'));
+    expect(right('大さじ2'), right('200g'));
+  });
+
+  testWidgets('材料名が短ければ、長い分量も大きな文字で1行に収める', (tester) async {
+    env.settings.values[cookingFontSizeKey] = CookingFontSize.extraLarge.name;
+    await pumpScreen(tester, videoId: 'longamount0');
+
+    final oneLine = tester.getSize(find.text('200g')).height;
+    expect(tester.getSize(find.text('各 大さじ3ずつ')).height, oneLine);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('本文のタイトルが隠れるまでスクロールしたら、上のバーにタイトルを出す', (tester) async {
+    await pumpScreen(tester, size: const Size(412, 600));
+    double barTitleOpacity() => tester
+        .widget<AnimatedOpacity>(
+          find.ancestor(
+            of: find.descendant(
+              of: find.byType(AppBar),
+              matching: find.text('豚バラ大根'),
+            ),
+            matching: find.byType(AnimatedOpacity),
+          ),
+        )
+        .opacity;
+    expect(barTitleOpacity(), 0);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(barTitleOpacity(), 1);
+  });
+
+  group('splitNameAndAmount', () {
+    test('両方収まるなら、どちらも1行の幅のまま', () {
+      expect(
+        splitNameAndAmount(available: 300, nameWidth: 60, amountWidth: 120),
+        (60.0, 120.0),
+      );
+    });
+
+    test('収まらなければ、材料名の残りを分量に回す', () {
+      expect(
+        splitNameAndAmount(available: 300, nameWidth: 60, amountWidth: 400),
+        (60.0, 240.0),
+      );
+    });
+
+    test('どちらも長ければ、分量は半分まで取る', () {
+      expect(
+        splitNameAndAmount(available: 300, nameWidth: 250, amountWidth: 250),
+        (150.0, 150.0),
+      );
+    });
+
+    test('合計は使える幅を超えない（狭い画面でもはみ出さない）', () {
+      for (final available in [-20.0, 0.0, 40.0, 150.0]) {
+        final (name, amount) = splitNameAndAmount(
+          available: available,
+          nameWidth: 200,
+          amountWidth: 200,
+        );
+        expect(name + amount, lessThanOrEqualTo(available < 0 ? 0 : available));
+        expect(name, greaterThanOrEqualTo(0));
+        expect(amount, greaterThanOrEqualTo(0));
+      }
+    });
   });
 
   testWidgets('工程番号が2桁でも、大きな文字で折り返さない', (tester) async {

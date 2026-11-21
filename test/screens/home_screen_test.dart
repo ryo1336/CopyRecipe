@@ -1,3 +1,6 @@
+import 'package:copy_recipe/data/app_exception.dart';
+import 'package:copy_recipe/features/cooking/cooking_screen.dart';
+import 'package:copy_recipe/screens/add_recipe_sheet.dart';
 import 'package:copy_recipe/screens/home_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -87,5 +90,62 @@ void main() {
 
     expect(find.text('テストチャンネル'), findsOneWidget);
     expect(find.text('材料 4 · 工程 2 · 2人分'), findsOneWidget);
+  });
+
+  Future<void> startAdding(WidgetTester tester, TestEnv env) async {
+    await env.pump(tester, const HomeScreen(), size: const Size(412, 915));
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField),
+      'https://youtu.be/vvvvvvvvvvv',
+    );
+    await tester.tap(find.text('追加する'));
+    await tester.pump();
+  }
+
+  testWidgets('1本だけ追加できたら、シートを閉じてそのレシピを開く', (tester) async {
+    final api = PendingYoutubeApi();
+    final env = TestEnv([sampleRecipe()], youtubeApi: api);
+    await startAdding(tester, env);
+
+    api.requests['vvvvvvvvvvv']!.complete(recipeVideo('vvvvvvvvvvv'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AddRecipeSheet), findsNothing);
+    expect(find.byType(CookingScreen), findsOneWidget);
+    expect(env.repository.contains('vvvvvvvvvvv'), isTrue);
+  });
+
+  testWidgets('読み込み中は背景をタップしてもシートを閉じない', (tester) async {
+    final api = PendingYoutubeApi();
+    final env = TestEnv([sampleRecipe()], youtubeApi: api);
+    await startAdding(tester, env);
+
+    await tester.tapAt(const Offset(200, 40));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(AddRecipeSheet), findsOneWidget);
+
+    api.requests['vvvvvvvvvvv']!.complete(recipeVideo('vvvvvvvvvvv'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('読み込み中にシートが閉じられても、結果は通知で知らせる', (tester) async {
+    final api = PendingYoutubeApi();
+    final env = TestEnv([sampleRecipe()], youtubeApi: api);
+    await startAdding(tester, env);
+
+    // 下に払って閉じたときと同じく、戻る操作の確認を通さずに閉じる
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pumpAndSettle();
+    expect(find.byType(AddRecipeSheet), findsNothing);
+
+    api.requests['vvvvvvvvvvv']!.completeError(
+      const AppException('動画が見つかりませんでした'),
+    );
+    // 例外が呼び出し元まで伝わってから通知が出るので、少し時間を進める
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('動画が見つかりませんでした'), findsOneWidget);
   });
 }
