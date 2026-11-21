@@ -137,7 +137,7 @@ class CheckIcon extends StatelessWidget {
   }
 }
 
-/// 材料のチェックリスト（グループ見出し付き）。料理中画面とステップモードで共通に使う
+/// 材料のチェックリスト（グループ見出し付き）。料理中画面の材料欄に使う
 class IngredientChecklist extends ConsumerWidget {
   const IngredientChecklist({
     super.key,

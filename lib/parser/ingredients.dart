@@ -49,7 +49,6 @@ final _parenAmount = RegExp(r'^(.+?)\s*\(([^()]*)\)$');
 /// 材料欄の行のリストを材料のリストに変換する。
 ///
 /// 空行（''）はグループの区切りとして扱う。
-/// 抽出処理と編集画面の両方から使う。
 List<Ingredient> parseIngredientLines(List<String> lines) {
   final result = <Ingredient>[];
   final markerGroups = <String, String>{};
