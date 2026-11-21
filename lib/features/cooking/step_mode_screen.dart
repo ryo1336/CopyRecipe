@@ -8,6 +8,7 @@ import '../../providers/recipes_provider.dart';
 import 'cooking_checks.dart';
 import 'cooking_screen.dart';
 import 'cooking_widgets.dart';
+import 'servings_scale.dart';
 
 /// 1工程ずつ大きな文字で表示する画面。
 ///
@@ -78,9 +79,14 @@ class _StepModeScreenState extends ConsumerState<StepModeScreen> {
             controller: scrollController,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             children: [
-              Text(
-                recipe.servings == null ? '材料' : '材料（${recipe.servings}）',
-                style: Theme.of(context).textTheme.titleLarge,
+              Consumer(
+                builder: (context, ref, _) => Text(
+                  ingredientsHeading(
+                    recipe,
+                    ref.watch(servingsScaleProvider(widget.videoId)),
+                  ),
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
               IngredientChecklist(
                 videoId: widget.videoId,

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/recipe.dart';
+import '../../models/ingredient.dart';
 import '../../models/recipe_step.dart';
+import '../../parser/amount.dart';
 import '../../parser/chapters.dart';
 import '../../parser/serialize.dart';
 import '../../providers/recipes_provider.dart';
@@ -12,6 +14,7 @@ import 'cooking_checks.dart';
 import 'cooking_settings.dart';
 import 'cooking_widgets.dart';
 import 'platform_services.dart';
+import 'servings_scale.dart';
 import 'step_mode_screen.dart';
 
 /// 料理中に見る画面。材料と作り方を1画面に並べる
@@ -43,8 +46,9 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
   }
 
   Future<void> _copyIngredients(Recipe recipe) async {
+    final factor = ref.read(servingsScaleProvider(widget.videoId));
     await Clipboard.setData(
-      ClipboardData(text: formatIngredientsForCopy(recipe)),
+      ClipboardData(text: formatIngredientsForCopy(recipe, factor: factor)),
     );
     if (mounted) {
       ScaffoldMessenger.of(
@@ -155,6 +159,8 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                       label: const Text('コピー'),
                     ),
             ),
+            if (recipe.ingredients.isNotEmpty)
+              _ScaleNotice(videoId: widget.videoId, servings: recipe.servings),
             if (recipe.ingredients.isEmpty)
               _NotFound(
                 message: '材料が見つかりませんでした',
@@ -244,10 +250,24 @@ Future<void> openVideo(
   }
 }
 
-/// 材料をクリップボード用のテキストにする（グループは【】の見出しにする）
-String formatIngredientsForCopy(Recipe recipe) => [
-  if (recipe.servings != null) '材料（${recipe.servings}）' else '材料',
-  ...ingredientsToLines(recipe.ingredients).where((l) => l.isNotEmpty),
+/// 材料の見出し（換算していれば換算後の人数を付ける）
+String ingredientsHeading(Recipe recipe, double factor) {
+  final servings = scaledServingsLabel(recipe.servings, factor);
+  return servings == null ? '材料' : '材料（$servings）';
+}
+
+/// 材料をクリップボード用のテキストにする（グループは【】の見出しにする）。
+/// 人数を換算していれば、換算後の分量でコピーする
+String formatIngredientsForCopy(Recipe recipe, {double factor = 1}) => [
+  ingredientsHeading(recipe, factor),
+  ...ingredientsToLines([
+    for (final i in recipe.ingredients)
+      Ingredient(
+        name: i.name,
+        amount: i.amount == null ? null : scaleAmount(i.amount!, factor),
+        group: i.group,
+      ),
+  ]).where((l) => l.isNotEmpty),
 ].join('\n');
 
 class _Header extends StatelessWidget {
@@ -275,17 +295,47 @@ class _Header extends StatelessWidget {
           runSpacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (recipe.servings != null)
-              Chip(
-                avatar: const Icon(Icons.people_outline, size: 18),
-                label: Text(recipe.servings!),
-              ),
+            ServingsChip(videoId: recipe.videoId, servings: recipe.servings),
             OutlinedButton.icon(
               onPressed: onOpenVideo,
               icon: const Icon(Icons.play_circle_outline),
               label: const Text('動画を開く'),
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// 換算中であることと、元の分量に戻すボタン（換算していなければ何も出さない）
+class _ScaleNotice extends ConsumerWidget {
+  const _ScaleNotice({required this.videoId, required this.servings});
+
+  final String videoId;
+  final String? servings;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final factor = ref.watch(servingsScaleProvider(videoId));
+    if (factor == 1) return const SizedBox.shrink();
+    final scaled = scaledServingsLabel(servings, factor)!;
+    final message = servings == null || parseServingsCount(servings) == null
+        ? '分量を$scaledで表示しています'
+        : '$scaledに換算しています（元は$servings）';
+    return Row(
+      children: [
+        Icon(
+          Icons.calculate_outlined,
+          size: 18,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(width: 4),
+        Expanded(child: Text(message)),
+        TextButton(
+          onPressed: () =>
+              ref.read(servingsScaleProvider(videoId).notifier).set(1),
+          child: const Text('元に戻す'),
         ),
       ],
     );

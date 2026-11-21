@@ -2,9 +2,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/ingredient.dart';
+import '../../parser/amount.dart';
 import '../../parser/serialize.dart';
 import 'cooking_checks.dart';
 import 'cooking_settings.dart';
+import 'servings_scale.dart';
 
 /// 端末の文字サイズ設定（[base]）に、アプリ内の文字サイズの倍率を掛ける
 class MultipliedTextScaler extends TextScaler {
@@ -153,6 +155,7 @@ class IngredientChecklist extends ConsumerWidget {
     final styles = CookingStyles.of(context, ref);
     final checks = ref.watch(cookingChecksProvider(videoId));
     final notifier = ref.read(cookingChecksProvider(videoId).notifier);
+    final factor = ref.watch(servingsScaleProvider(videoId));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -165,7 +168,10 @@ class IngredientChecklist extends ConsumerWidget {
             ),
           for (final (i, ingredient) in group.items)
             _IngredientRow(
-              ingredient: ingredient,
+              name: ingredient.name,
+              amount: ingredient.amount == null
+                  ? null
+                  : scaleAmount(ingredient.amount!, factor),
               checked: checks.ingredients.contains(i),
               styles: styles,
               onTap: () => notifier.toggleIngredient(i),
@@ -178,13 +184,15 @@ class IngredientChecklist extends ConsumerWidget {
 
 class _IngredientRow extends StatelessWidget {
   const _IngredientRow({
-    required this.ingredient,
+    required this.name,
+    required this.amount,
     required this.checked,
     required this.styles,
     required this.onTap,
   });
 
-  final Ingredient ingredient;
+  final String name;
+  final String? amount;
   final bool checked;
   final CookingStyles styles;
   final VoidCallback onTap;
@@ -194,20 +202,17 @@ class _IngredientRow extends StatelessWidget {
     return CheckableRow(
       checked: checked,
       onTap: onTap,
-      semanticsLabel: [
-        ingredient.name,
-        if (ingredient.amount != null) ingredient.amount!,
-      ].join(' '),
+      semanticsLabel: [name, ?amount].join(' '),
       child: Row(
         children: [
           CheckIcon(checked: checked, scale: styles.scale),
           const SizedBox(width: 8),
-          Expanded(child: Text(ingredient.name, style: styles.body)),
-          if (ingredient.amount != null) ...[
+          Expanded(child: Text(name, style: styles.body)),
+          if (amount != null) ...[
             const SizedBox(width: 12),
             Flexible(
               child: Text(
-                ingredient.amount!,
+                amount!,
                 style: styles.amount,
                 textAlign: TextAlign.end,
               ),
