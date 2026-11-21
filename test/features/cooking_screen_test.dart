@@ -4,7 +4,7 @@ import 'package:copy_recipe/features/cooking/step_mode_screen.dart';
 import 'package:copy_recipe/models/ingredient.dart';
 import 'package:copy_recipe/models/recipe_step.dart';
 import 'package:copy_recipe/parser/chapters.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -1,7 +1,7 @@
 import 'package:copy_recipe/features/recipe_edit/recipe_edit_screen.dart';
 import 'package:copy_recipe/models/ingredient.dart';
 import 'package:copy_recipe/models/recipe_step.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/fakes.dart';

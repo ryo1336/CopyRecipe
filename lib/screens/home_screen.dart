@@ -2,7 +2,7 @@ import 'package:copy_recipe/models/recipe.dart';
 import 'package:copy_recipe/screens/add_url_screen.dart';
 import 'package:copy_recipe/features/cooking/cooking_screen.dart';
 import 'package:copy_recipe/widgets/recipe_tile.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/recipes_provider.dart';
 
