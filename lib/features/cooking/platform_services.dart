@@ -28,7 +28,9 @@ class WakelockScreenAwake implements ScreenAwake {
   }
 }
 
-final screenAwakeProvider = Provider<ScreenAwake>((_) => const WakelockScreenAwake());
+final screenAwakeProvider = Provider<ScreenAwake>(
+  (_) => const WakelockScreenAwake(),
+);
 
 /// 動画を YouTube アプリ（なければブラウザ）で開く
 abstract class VideoLauncher {
@@ -55,9 +57,11 @@ class UrlVideoLauncher implements VideoLauncher {
 
 /// 指定した時刻から再生する動画の URL
 Uri videoUrl(String videoId, {int startSeconds = 0}) => Uri.https(
-      'www.youtube.com',
-      '/watch',
-      {'v': videoId, if (startSeconds > 0) 't': '${startSeconds}s'},
-    );
+  'www.youtube.com',
+  '/watch',
+  {'v': videoId, if (startSeconds > 0) 't': '${startSeconds}s'},
+);
 
-final videoLauncherProvider = Provider<VideoLauncher>((_) => const UrlVideoLauncher());
+final videoLauncherProvider = Provider<VideoLauncher>(
+  (_) => const UrlVideoLauncher(),
+);

@@ -16,8 +16,10 @@ class RawDescriptionEditScreen extends ConsumerStatefulWidget {
       _RawDescriptionEditScreenState();
 }
 
-class _RawDescriptionEditScreenState extends ConsumerState<RawDescriptionEditScreen> {
+class _RawDescriptionEditScreenState
+    extends ConsumerState<RawDescriptionEditScreen> {
   late final TextEditingController _controller;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -36,6 +38,9 @@ class _RawDescriptionEditScreenState extends ConsumerState<RawDescriptionEditScr
   }
 
   Future<void> _save() async {
+    // 連打で保存と画面を閉じる処理が二重に走らないようにする
+    if (_saving) return;
+    setState(() => _saving = true);
     await ref
         .read(recipesProvider.notifier)
         .updateDescription(widget.videoId, _controller.text);
@@ -52,7 +57,7 @@ class _RawDescriptionEditScreenState extends ConsumerState<RawDescriptionEditScr
           IconButton(
             icon: const Icon(Icons.check),
             tooltip: '保存',
-            onPressed: _save,
+            onPressed: _saving ? null : _save,
           ),
         ],
       ),

@@ -34,6 +34,28 @@ class FakeSettingsStore implements SettingsStore {
   void setString(String key, String value) => values[key] = value;
 }
 
+/// メモリ上だけで読み書きする RecipeRepository。ウィジェットテストの疑似時間の中では
+/// Hive のファイル書き込みが完了せず、後片付けで止まってしまうため使う
+class InMemoryRecipeRepository extends RecipeRepository {
+  InMemoryRecipeRepository(super.seed)
+      : _recipes = {for (final r in seed.values) r.videoId: r};
+
+  final Map<String, Recipe> _recipes;
+  int putCount = 0;
+
+  @override
+  List<Recipe> all() => _recipes.values.toList();
+
+  @override
+  Recipe? get(String videoId) => _recipes[videoId];
+
+  @override
+  Future<void> put(Recipe recipe) async {
+    putCount++;
+    _recipes[recipe.videoId] = recipe;
+  }
+}
+
 class FakeVideoLauncher implements VideoLauncher {
   final opened = <(String, int)>[];
 
@@ -137,7 +159,7 @@ void main() {
   testWidgets('行をタップするとチェックが付き、まとめて外せる', (tester) async {
     await pumpScreen(tester);
     expect(find.byIcon(Icons.check_box), findsNothing);
-    expect(find.text('チェックを外す'), findsNothing);
+    expect(find.byTooltip('すべてのチェックを外す'), findsNothing);
 
     await tester.tap(find.text('豚バラ肉'));
     await tester.tap(find.text('大根を切る'));
@@ -148,7 +170,7 @@ void main() {
     await tester.pump();
     expect(find.byIcon(Icons.check_box), findsOneWidget);
 
-    await tester.tap(find.text('チェックを外す'));
+    await tester.tap(find.byTooltip('すべてのチェックを外す'));
     await tester.pump();
     expect(find.byIcon(Icons.check_box), findsNothing);
   });
@@ -198,15 +220,19 @@ void main() {
 
   testWidgets('文字サイズを変えると表示に反映され、設定が保存される', (tester) async {
     await pumpScreen(tester);
-    double? fontSizeOf(String text) => tester.widget<Text>(find.text(text)).style?.fontSize;
-    expect(fontSizeOf('豚バラ肉'), 17);
+    // 本文全体（材料・人数のチップ・ボタン）に同じ倍率が掛かる
+    double scaled(String text) =>
+        MediaQuery.textScalerOf(tester.element(find.text(text))).scale(17);
+    expect(scaled('豚バラ肉'), 17);
 
     await tester.tap(find.byTooltip('文字サイズ'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('文字サイズ: 特大'));
     await tester.pumpAndSettle();
 
-    expect(fontSizeOf('豚バラ肉'), 17 * 1.5);
+    for (final text in ['豚バラ肉', '2人分', '動画を開く', '1:12', '概要欄の全文']) {
+      expect(scaled(text), 17 * 1.5, reason: text);
+    }
     expect(settings.values[cookingFontSizeKey], 'extraLarge');
   });
 
@@ -216,6 +242,52 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     expect(screenAwake.enabled, isFalse);
+  });
+
+  testWidgets('保存ボタンを連打しても、編集画面だけが閉じる', (tester) async {
+    final repo = InMemoryRecipeRepository(recipes);
+    tester.view.physicalSize = const Size(412, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        recipeRepositoryProvider.overrideWithValue(repo),
+        screenAwakeProvider.overrideWithValue(screenAwake),
+        videoLauncherProvider.overrideWithValue(launcher),
+        settingsStoreProvider.overrideWithValue(settings),
+      ],
+      child: const MaterialApp(home: CookingScreen(videoId: 'aaaaaaaaaaa')),
+    ));
+
+    await tester.tap(find.byTooltip('概要欄を編集'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('保存'));
+    await tester.tap(find.byTooltip('保存'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(repo.putCount, 1);
+    expect(find.text('概要欄を編集'), findsNothing);
+    expect(find.byType(CookingScreen), findsOneWidget);
+  });
+
+  testWidgets('工程番号が2桁でも、大きな文字で折り返さない', (tester) async {
+    // テスト本体は疑似時間で動くので、Hive への実際の書き込みは runAsync の中で行う
+    await tester.runAsync(() => recipes.put(
+          'manysteps00',
+          recipe(
+            id: 'manysteps00',
+            steps: [for (var i = 1; i <= 12; i++) RecipeStep(text: '工程$i')],
+          ),
+        ));
+    settings.values[cookingFontSizeKey] = CookingFontSize.extraLarge.name;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await pumpScreen(tester, videoId: 'manysteps00', size: const Size(360, 4000));
+
+    final oneDigit = tester.getSize(find.text('9')).height;
+    expect(tester.getSize(find.text('12')).height, oneDigit);
+    expect(tester.takeException(), isNull);
   });
 
   group('画面サイズと文字サイズの組み合わせでレイアウトが崩れない', () {

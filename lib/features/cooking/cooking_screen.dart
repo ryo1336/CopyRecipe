@@ -44,18 +44,20 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
         .read(videoLauncherProvider)
         .open(recipe.videoId, startSeconds: startSeconds);
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('動画を開けませんでした')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('動画を開けませんでした')));
     }
   }
 
   Future<void> _copyIngredients(Recipe recipe) async {
-    await Clipboard.setData(ClipboardData(text: formatIngredientsForCopy(recipe)));
+    await Clipboard.setData(
+      ClipboardData(text: formatIngredientsForCopy(recipe)),
+    );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('材料をコピーしました')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('材料をコピーしました')));
     }
   }
 
@@ -83,7 +85,9 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
     }
 
     final checks = ref.watch(cookingChecksProvider(widget.videoId));
-    final checksNotifier = ref.read(cookingChecksProvider(widget.videoId).notifier);
+    final checksNotifier = ref.read(
+      cookingChecksProvider(widget.videoId).notifier,
+    );
     final fontSize = ref.watch(cookingFontSizeProvider);
     final styles = _CookingStyles(Theme.of(context), fontSize.scale);
 
@@ -111,6 +115,12 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                 ),
             ],
           ),
+          if (!checks.isEmpty)
+            IconButton(
+              icon: const Icon(Icons.restart_alt),
+              tooltip: 'すべてのチェックを外す',
+              onPressed: checksNotifier.reset,
+            ),
           IconButton(
             icon: const Icon(Icons.edit),
             tooltip: '概要欄を編集',
@@ -118,77 +128,85 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        children: [
-          _Header(recipe: recipe, styles: styles, onOpenVideo: () => _openVideo(recipe)),
-          const SizedBox(height: 24),
-
-          // 材料
-          _SectionTitle(
-            title: '材料',
-            styles: styles,
-            trailing: recipe.ingredients.isEmpty
-                ? null
-                : TextButton.icon(
-                    onPressed: () => _copyIngredients(recipe),
-                    icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('コピー'),
-                  ),
+      // 文字サイズの設定は、端末の文字サイズ設定に掛け合わせて本文全体に効かせる
+      body: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: _MultipliedTextScaler(
+            MediaQuery.textScalerOf(context),
+            fontSize.scale,
           ),
-          if (recipe.ingredients.isEmpty)
-            _NotFound(
-              message: '材料が見つかりませんでした',
+        ),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          children: [
+            _Header(
+              recipe: recipe,
               styles: styles,
-              onEdit: _openEditor,
-            )
-          else
-            ..._ingredientRows(recipe.ingredients, checks, checksNotifier, styles),
-          const SizedBox(height: 24),
-
-          // 作り方
-          _SectionTitle(
-            title: '作り方',
-            styles: styles,
-            trailing: checks.isEmpty
-                ? null
-                : TextButton.icon(
-                    onPressed: checksNotifier.reset,
-                    icon: const Icon(Icons.restart_alt, size: 18),
-                    label: const Text('チェックを外す'),
-                  ),
-          ),
-          if (recipe.steps.isEmpty)
-            _NotFound(
-              message: '工程が見つかりませんでした',
-              styles: styles,
-              onEdit: _openEditor,
-            )
-          else
-            for (final (i, step) in recipe.steps.indexed)
-              _StepRow(
-                number: i + 1,
-                step: step,
-                checked: checks.steps.contains(i),
-                styles: styles,
-                onTap: () => checksNotifier.toggleStep(i),
-                onOpenVideo: step.startSeconds == null
-                    ? null
-                    : () => _openVideo(recipe, step.startSeconds!),
-              ),
-          const SizedBox(height: 24),
-
-          // 概要欄の全文（最初は折りたたむ）
-          Card(
-            margin: EdgeInsets.zero,
-            child: ExpansionTile(
-              title: const Text('概要欄の全文'),
-              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              expandedCrossAxisAlignment: CrossAxisAlignment.start,
-              children: [SelectableText(recipe.rawDescription)],
+              onOpenVideo: () => _openVideo(recipe),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+
+            // 材料
+            _SectionTitle(
+              title: '材料',
+              styles: styles,
+              trailing: recipe.ingredients.isEmpty
+                  ? null
+                  : TextButton.icon(
+                      onPressed: () => _copyIngredients(recipe),
+                      icon: const Icon(Icons.copy, size: 18),
+                      label: const Text('コピー'),
+                    ),
+            ),
+            if (recipe.ingredients.isEmpty)
+              _NotFound(
+                message: '材料が見つかりませんでした',
+                styles: styles,
+                onEdit: _openEditor,
+              )
+            else
+              ..._ingredientRows(
+                recipe.ingredients,
+                checks,
+                checksNotifier,
+                styles,
+              ),
+            const SizedBox(height: 24),
+
+            // 作り方
+            _SectionTitle(title: '作り方', styles: styles),
+            if (recipe.steps.isEmpty)
+              _NotFound(
+                message: '工程が見つかりませんでした',
+                styles: styles,
+                onEdit: _openEditor,
+              )
+            else
+              for (final (i, step) in recipe.steps.indexed)
+                _StepRow(
+                  number: i + 1,
+                  step: step,
+                  checked: checks.steps.contains(i),
+                  styles: styles,
+                  onTap: () => checksNotifier.toggleStep(i),
+                  onOpenVideo: step.startSeconds == null
+                      ? null
+                      : () => _openVideo(recipe, step.startSeconds!),
+                ),
+            const SizedBox(height: 24),
+
+            // 概要欄の全文（最初は折りたたむ）
+            Card(
+              margin: EdgeInsets.zero,
+              child: ExpansionTile(
+                title: const Text('概要欄の全文'),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [SelectableText(recipe.rawDescription)],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -205,18 +223,22 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
       if (ingredient.group != currentGroup) {
         currentGroup = ingredient.group;
         if (currentGroup != null) {
-          rows.add(Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
-            child: Text(currentGroup, style: styles.group),
-          ));
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Text(currentGroup, style: styles.group),
+            ),
+          );
         }
       }
-      rows.add(_IngredientRow(
-        ingredient: ingredient,
-        checked: checks.ingredients.contains(i),
-        styles: styles,
-        onTap: () => notifier.toggleIngredient(i),
-      ));
+      rows.add(
+        _IngredientRow(
+          ingredient: ingredient,
+          checked: checks.ingredients.contains(i),
+          styles: styles,
+          onTap: () => notifier.toggleIngredient(i),
+        ),
+      );
     }
     return rows;
   }
@@ -233,26 +255,55 @@ String formatIngredientsForCopy(Recipe recipe) {
       currentGroup = ingredient.group;
       if (currentGroup != null) lines.add('【$currentGroup】');
     }
-    lines.add(ingredient.amount == null
-        ? ingredient.name
-        : '${ingredient.name} ${ingredient.amount}');
+    lines.add(
+      ingredient.amount == null
+          ? ingredient.name
+          : '${ingredient.name} ${ingredient.amount}',
+    );
   }
   return lines.join('\n');
 }
 
-/// 文字サイズの設定に合わせた文字のスタイル
+/// 端末の文字サイズ設定（[base]）に、アプリ内の文字サイズの倍率を掛ける
+class _MultipliedTextScaler extends TextScaler {
+  const _MultipliedTextScaler(this.base, this.factor);
+
+  final TextScaler base;
+  final double factor;
+
+  @override
+  double scale(double fontSize) => base.scale(fontSize) * factor;
+
+  @override
+  // ignore: deprecated_member_use
+  double get textScaleFactor => base.textScaleFactor * factor;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _MultipliedTextScaler &&
+      other.base == base &&
+      other.factor == factor;
+
+  @override
+  int get hashCode => Object.hash(base, factor);
+}
+
+/// 料理中画面の文字のスタイル
 class _CookingStyles {
+  ///
+  /// 文字の大きさの倍率は MediaQuery の textScaler で掛けるので、ここでは掛けない。
+  /// [scale] はアイコンや余白など、文字以外の大きさをそろえるのに使う。
   _CookingStyles(ThemeData theme, this.scale)
-      : title = TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold),
-        section = TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold),
-        group = TextStyle(
-          fontSize: 15 * scale,
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.primary,
-        ),
-        body = TextStyle(fontSize: 17 * scale, height: 1.4),
-        amount = TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w600),
-        caption = TextStyle(fontSize: 13 * scale, color: theme.hintColor);
+    : title = const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      section = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      group = TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.bold,
+        color: theme.colorScheme.primary,
+      ),
+      body = const TextStyle(fontSize: 17, height: 1.4),
+      amount = const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+      caption = TextStyle(fontSize: 13, color: theme.hintColor);
 
   final TextStyle title;
   final TextStyle section;
@@ -264,7 +315,11 @@ class _CookingStyles {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.recipe, required this.styles, required this.onOpenVideo});
+  const _Header({
+    required this.recipe,
+    required this.styles,
+    required this.onOpenVideo,
+  });
 
   final Recipe recipe;
   final _CookingStyles styles;
@@ -302,7 +357,11 @@ class _Header extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.styles, this.trailing});
+  const _SectionTitle({
+    required this.title,
+    required this.styles,
+    this.trailing,
+  });
 
   final String title;
   final _CookingStyles styles;
@@ -429,9 +488,13 @@ class _StepRow extends StatelessWidget {
           children: [
             _CheckIcon(checked: checked, scale: styles.scale),
             const SizedBox(width: 8),
-            SizedBox(
-              width: 28 * styles.scale,
-              child: Text('$number', style: styles.amount),
+            // 2桁以上の番号や大きな文字でも折り返さないよう、幅は最小値だけ決める
+            ConstrainedBox(
+              constraints: BoxConstraints(minWidth: 28 * styles.scale),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text('$number', style: styles.amount, softWrap: false),
+              ),
             ),
             Expanded(child: Text(step.text, style: styles.body)),
             if (onOpenVideo != null)
@@ -468,7 +531,11 @@ class _CheckIcon extends StatelessWidget {
 }
 
 class _NotFound extends StatelessWidget {
-  const _NotFound({required this.message, required this.styles, required this.onEdit});
+  const _NotFound({
+    required this.message,
+    required this.styles,
+    required this.onEdit,
+  });
 
   final String message;
   final _CookingStyles styles;

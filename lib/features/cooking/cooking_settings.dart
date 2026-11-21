@@ -42,7 +42,9 @@ enum CookingFontSize {
 
 /// 料理中画面の文字サイズ。選んだサイズは端末に保存し、次回も使う
 final cookingFontSizeProvider =
-    NotifierProvider<CookingFontSizeNotifier, CookingFontSize>(CookingFontSizeNotifier.new);
+    NotifierProvider<CookingFontSizeNotifier, CookingFontSize>(
+      CookingFontSizeNotifier.new,
+    );
 
 class CookingFontSizeNotifier extends Notifier<CookingFontSize> {
   @override
