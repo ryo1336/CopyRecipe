@@ -25,7 +25,10 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # pubspec.lock を作った手元の Flutter と同じ版に固定する。
+          # 版が違うと SDK 同梱のパッケージが食い違い、--enforce-lockfile で失敗する
           channel: stable
+          flutter-version: 3.50.1
           cache: true
 
       - name: Show Flutter version
