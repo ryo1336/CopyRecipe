@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/ingredient.dart';
 import '../../parser/serialize.dart';
-import 'cooking_checks.dart';
 import 'cooking_settings.dart';
 
 /// 端末の文字サイズ設定（[base]）に、アプリ内の文字サイズの倍率を掛ける
@@ -83,77 +82,35 @@ class CookingStyles {
   final double scale;
 }
 
-/// 行全体をタップするとチェックが付く。チェック済みの行は薄く表示する
-class CheckableRow extends StatelessWidget {
-  const CheckableRow({
-    super.key,
-    required this.checked,
-    required this.onTap,
-    required this.semanticsLabel,
-    required this.child,
-  });
+/// 材料・工程の1行。濡れた手で画面に触れずに読むだけなので、操作はなく、
+/// 離れた場所からでも行の区切りが分かるよう高さだけ確保する
+class RecipeRow extends StatelessWidget {
+  const RecipeRow({super.key, required this.child});
 
-  final bool checked;
-  final VoidCallback onTap;
-  final String semanticsLabel;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return MergeSemantics(
-      child: Semantics(
-        checked: checked,
-        label: semanticsLabel,
-        child: InkWell(
-          onTap: onTap,
-          // 濡れた手でも押しやすいよう、Material の推奨より高めにする
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 150),
-              opacity: checked ? 0.4 : 1,
-              child: child,
-            ),
-          ),
-        ),
-      ),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
+      child: Align(alignment: AlignmentDirectional.centerStart, child: child),
     );
   }
 }
 
-class CheckIcon extends StatelessWidget {
-  const CheckIcon({super.key, required this.checked, required this.scale});
+/// 材料の一覧（グループ見出し付き）。料理中画面の材料欄に使う
+class IngredientList extends StatelessWidget {
+  const IngredientList({
+    super.key,
+    required this.ingredients,
+    required this.styles,
+  });
 
-  final bool checked;
-  final double scale;
+  final List<Ingredient> ingredients;
+  final CookingStyles styles;
 
   @override
   Widget build(BuildContext context) {
-    return Icon(
-      checked ? Icons.check_box : Icons.check_box_outline_blank,
-      size: 24 * scale,
-      color: checked ? Theme.of(context).colorScheme.primary : null,
-    );
-  }
-}
-
-/// 材料のチェックリスト（グループ見出し付き）。料理中画面の材料欄に使う
-class IngredientChecklist extends ConsumerWidget {
-  const IngredientChecklist({
-    super.key,
-    required this.videoId,
-    required this.ingredients,
-  });
-
-  final String videoId;
-  final List<Ingredient> ingredients;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final styles = CookingStyles.of(context, ref);
-    final checks = ref.watch(cookingChecksProvider(videoId));
-    final notifier = ref.read(cookingChecksProvider(videoId).notifier);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -163,13 +120,8 @@ class IngredientChecklist extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 12, bottom: 4),
               child: Text(group.name!, style: styles.group),
             ),
-          for (final (i, ingredient) in group.items)
-            _IngredientRow(
-              ingredient: ingredient,
-              checked: checks.ingredients.contains(i),
-              styles: styles,
-              onTap: () => notifier.toggleIngredient(i),
-            ),
+          for (final ingredient in group.items)
+            _IngredientRow(ingredient: ingredient, styles: styles),
         ],
       ],
     );
@@ -177,41 +129,23 @@ class IngredientChecklist extends ConsumerWidget {
 }
 
 class _IngredientRow extends StatelessWidget {
-  const _IngredientRow({
-    required this.ingredient,
-    required this.checked,
-    required this.styles,
-    required this.onTap,
-  });
+  const _IngredientRow({required this.ingredient, required this.styles});
 
   final Ingredient ingredient;
-  final bool checked;
   final CookingStyles styles;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return CheckableRow(
-      checked: checked,
-      onTap: onTap,
-      semanticsLabel: [
-        ingredient.name,
-        if (ingredient.amount != null) ingredient.amount!,
-      ].join(' '),
-      child: Row(
-        children: [
-          CheckIcon(checked: checked, scale: styles.scale),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ingredient.amount == null
-                ? Text(ingredient.name, style: styles.body)
-                : _NameAndAmount(
-                    name: ingredient.name,
-                    amount: ingredient.amount!,
-                    styles: styles,
-                  ),
-          ),
-        ],
+    return RecipeRow(
+      // 材料名と分量を1つの項目として読み上げる
+      child: MergeSemantics(
+        child: ingredient.amount == null
+            ? Text(ingredient.name, style: styles.body)
+            : _NameAndAmount(
+                name: ingredient.name,
+                amount: ingredient.amount!,
+                styles: styles,
+              ),
       ),
     );
   }

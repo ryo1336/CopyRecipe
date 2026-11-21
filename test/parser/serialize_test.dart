@@ -3,7 +3,7 @@ import 'package:copy_recipe/parser/serialize.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('groupIngredients は連続する同じグループをまとめ、元の番号を保つ', () {
+  test('groupIngredients は連続する同じグループをまとめる', () {
     final groups = groupIngredients(const [
       Ingredient(name: '豚肉'),
       Ingredient(name: '醤油', group: 'A'),
@@ -11,7 +11,7 @@ void main() {
       Ingredient(name: '塩'),
     ]);
     expect(groups.map((g) => g.name), [null, 'A', null]);
-    expect(groups[1].items.map((e) => e.$1), [1, 2]);
+    expect(groups[1].items.map((e) => e.name), ['醤油', 'みりん']);
   });
 
   test('ingredientsToLines はグループの前後に見出しと空行を入れる', () {

@@ -55,23 +55,30 @@ void main() {
     expect(find.text('概要欄の原文です'), findsOneWidget);
   });
 
-  testWidgets('行をタップするとチェックが付き、まとめて外せる', (tester) async {
+  testWidgets('チェックボックスは出さず、行をタップしても何も変わらない', (tester) async {
     await pumpScreen(tester);
+    expect(find.byIcon(Icons.check_box_outline_blank), findsNothing);
     expect(find.byIcon(Icons.check_box), findsNothing);
-    expect(find.byTooltip('すべてのチェックを外す'), findsNothing);
 
-    await tester.tap(find.text('豚バラ肉'));
-    await tester.tap(find.text('大根を切る'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_box), findsNWidgets(2));
+    // 行にはタップの受け口がなく、薄くする表示もない
+    for (final text in ['豚バラ肉', '大根を切る']) {
+      for (final type in [InkWell, GestureDetector, Opacity, AnimatedOpacity]) {
+        expect(
+          find.ancestor(of: find.text(text), matching: find.byType(type)),
+          findsNothing,
+          reason: '$text / $type',
+        );
+      }
+    }
+  });
 
-    await tester.tap(find.text('豚バラ肉'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_box), findsOneWidget);
+  testWidgets('工程は「手順N 本文」の1つの項目として読み上げる', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpScreen(tester);
 
-    await tester.tap(find.byTooltip('すべてのチェックを外す'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_box), findsNothing);
+    expect(find.bySemanticsLabel('手順1 大根を切る'), findsOneWidget);
+    expect(find.bySemanticsLabel('手順2 豚肉を炒める'), findsOneWidget);
+    semantics.dispose();
   });
 
   testWidgets('時刻ボタンでその時刻から、「動画を開く」で最初から動画を開く', (tester) async {
@@ -82,8 +89,6 @@ void main() {
     await tester.pump();
 
     expect(env.launcher.opened, [('aaaaaaaaaaa', 72), ('aaaaaaaaaaa', 0)]);
-    // 時刻ボタンを押してもチェックは付かない
-    expect(find.byIcon(Icons.check_box), findsNothing);
   });
 
   testWidgets('材料をグループ見出し付きでコピーする', (tester) async {

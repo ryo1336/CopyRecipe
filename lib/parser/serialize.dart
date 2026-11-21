@@ -1,9 +1,9 @@
 import '../models/ingredient.dart';
 
-/// 材料をグループごとにまとめたもの。[items] の番号は元のリストでの位置
+/// 材料をグループごとにまとめたもの
 class IngredientGroup {
   final String? name;
-  final List<(int, Ingredient)> items;
+  final List<Ingredient> items;
 
   const IngredientGroup(this.name, this.items);
 }
@@ -11,11 +11,11 @@ class IngredientGroup {
 /// 連続する同じグループの材料をまとめる（表示とコピーで共通に使う）
 List<IngredientGroup> groupIngredients(List<Ingredient> ingredients) {
   final groups = <IngredientGroup>[];
-  for (final (i, ingredient) in ingredients.indexed) {
+  for (final ingredient in ingredients) {
     if (groups.isEmpty || groups.last.name != ingredient.group) {
       groups.add(IngredientGroup(ingredient.group, []));
     }
-    groups.last.items.add((i, ingredient));
+    groups.last.items.add(ingredient);
   }
   return groups;
 }
@@ -28,7 +28,7 @@ List<String> ingredientsToLines(List<Ingredient> ingredients) {
   final lines = <String>[];
   for (final group in groupIngredients(ingredients)) {
     if (group.name != null) lines.add('【${group.name}】');
-    for (final (_, ingredient) in group.items) {
+    for (final ingredient in group.items) {
       lines.add(
         ingredient.amount == null
             ? ingredient.name
