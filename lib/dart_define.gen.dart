@@ -2,5 +2,3 @@
 class DartDefine {
   static const apiKey = String.fromEnvironment('API_KEY');
 }
-
-    

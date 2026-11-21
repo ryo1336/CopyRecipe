@@ -16,10 +16,12 @@ class Chapter {
   String toString() => 'Chapter($seconds, $title)';
 }
 
-final _leadingTimestamp =
-    RegExp(r'^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?!\d)\s*(.*)$');
-final _trailingTimestamp =
-    RegExp(r'^(.*?)\s*[(]?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[)]?$');
+final _leadingTimestamp = RegExp(
+  r'^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?!\d)\s*(.*)$',
+);
+final _trailingTimestamp = RegExp(
+  r'^(.*?)\s*[(]?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[)]?$',
+);
 final _titleTrim = RegExp(r'^[\s\-–—~〜ー:|・]+|[\s\-–—~〜ー:|・]+$');
 
 /// 1行がタイムスタンプ付きならチャプターとして返す。そうでなければ null。
@@ -29,7 +31,11 @@ Chapter? parseTimestampLine(String line) {
   final text = line.trim();
   final leading = _leadingTimestamp.firstMatch(text);
   if (leading != null) {
-    final seconds = _toSeconds(leading.group(1), leading.group(2)!, leading.group(3)!);
+    final seconds = _toSeconds(
+      leading.group(1),
+      leading.group(2)!,
+      leading.group(3)!,
+    );
     final title = leading.group(4)!.replaceAll(_titleTrim, '');
     if (seconds == null) return null;
     return Chapter(title, seconds);
@@ -38,7 +44,11 @@ Chapter? parseTimestampLine(String line) {
   if (trailing != null) {
     final title = trailing.group(1)!.replaceAll(_titleTrim, '');
     if (title.isEmpty) return null;
-    final seconds = _toSeconds(trailing.group(2), trailing.group(3)!, trailing.group(4)!);
+    final seconds = _toSeconds(
+      trailing.group(2),
+      trailing.group(3)!,
+      trailing.group(4)!,
+    );
     if (seconds == null) return null;
     return Chapter(title, seconds);
   }

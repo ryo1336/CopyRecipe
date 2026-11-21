@@ -14,7 +14,11 @@ void main() {
       'https://www.youtube.com/live/$id',
       'https://www.youtube.com/watch?v=$id&list=PLabc',
     ]) {
-      expect(parseYoutubeUrl(url), const YoutubeTarget(videoId: id), reason: url);
+      expect(
+        parseYoutubeUrl(url),
+        const YoutubeTarget(videoId: id),
+        reason: url,
+      );
     }
   });
 
