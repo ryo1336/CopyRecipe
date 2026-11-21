@@ -37,7 +37,7 @@ class RecipeRepository {
         .where((r) => !r.isEdited && r.parserVersion < kParserVersion)
         .map((r) {
       final parsed = parseRecipe(r.rawDescription);
-      return r.copyWith(
+      return r.withParsedContent(
         ingredients: parsed.ingredients,
         steps: parsed.steps,
         servings: parsed.servings,

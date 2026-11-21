@@ -113,7 +113,7 @@ class RecipesNotifier extends Notifier<List<Recipe>> {
     final existing = _repo.get(videoId);
     if (existing == null) return;
     final parsed = parseRecipe(description);
-    await _repo.put(existing.copyWith(
+    await _repo.put(existing.withParsedContent(
       rawDescription: description,
       ingredients: parsed.ingredients,
       steps: parsed.steps,
@@ -124,7 +124,9 @@ class RecipesNotifier extends Notifier<List<Recipe>> {
   }
 
   Future<void> delete(String videoId) async {
+    // スワイプで消した項目（Dismissible）は同じフレーム内で一覧から外す必要があるため、
+    // 保存先への書き込みを待たずに先に state から取り除く
+    state = state.where((r) => r.videoId != videoId).toList();
     await _repo.delete(videoId);
-    state = _repo.all();
   }
 }

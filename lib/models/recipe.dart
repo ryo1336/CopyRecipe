@@ -57,13 +57,17 @@ class Recipe {
     required this.parserVersion,
   });
 
-  Recipe copyWith({
+  /// 抽出結果（材料・工程・人数）を丸ごと置き換えたコピーを返す。
+  ///
+  /// 抽出し直して人数が取れなくなった場合に古い人数が残らないよう、
+  /// [servings] は null も含めてそのまま上書きする。
+  Recipe withParsedContent({
+    required List<Ingredient> ingredients,
+    required List<RecipeStep> steps,
+    required String? servings,
+    required int parserVersion,
     String? rawDescription,
-    List<Ingredient>? ingredients,
-    List<RecipeStep>? steps,
-    String? servings,
     bool? isEdited,
-    int? parserVersion,
   }) {
     return Recipe(
       videoId: videoId,
@@ -71,12 +75,12 @@ class Recipe {
       channelTitle: channelTitle,
       thumbnailUrl: thumbnailUrl,
       rawDescription: rawDescription ?? this.rawDescription,
-      ingredients: ingredients ?? this.ingredients,
-      steps: steps ?? this.steps,
-      servings: servings ?? this.servings,
+      ingredients: ingredients,
+      steps: steps,
+      servings: servings,
       addedAt: addedAt,
       isEdited: isEdited ?? this.isEdited,
-      parserVersion: parserVersion ?? this.parserVersion,
+      parserVersion: parserVersion,
     );
   }
 }

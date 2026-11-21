@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:copy_recipe/data/app_exception.dart';
@@ -74,6 +75,18 @@ void main() {
     expect(videos.map((v) => v.id), ['a', 'b']);
     expect(videos.first.thumbnailUrl, isNull);
     expect(videos.last.thumbnailUrl, 'https://img/b.jpg');
+  });
+
+  test('応答がなければタイムアウトして、わかりやすいエラーになる', () async {
+    final api = YoutubeApi(
+      apiKey: 'k',
+      timeout: const Duration(milliseconds: 20),
+      client: MockClient((_) => Completer<http.Response>().future),
+    );
+    expect(
+      () => api.fetchVideo('xxxxxxxxxxx'),
+      throwsA(isA<AppException>().having((e) => e.message, 'message', contains('タイムアウト'))),
+    );
   });
 
   test('上限超過は専用のメッセージ', () async {

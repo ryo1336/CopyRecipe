@@ -29,10 +29,12 @@ final _stepsHeader = RegExp(
   r'|howto|howtomake|directions|method)(?:はこちら)?\d*$',
 );
 
+/// 材料・作り方以外の見出し。本文の行（「注意しながら焼く」など）を見出しと
+/// 取り違えないよう、装飾記号を除いた行全体が一致する場合だけ見出しとみなす
 final _otherHeader = RegExp(
   r'^(?:ポイント|コツ|memo|メモ|注意|注意点|目次|チャプター|タイムスタンプ|chapters?|index'
   r'|保存方法|アレンジ|おすすめ|関連動画|おすすめ動画|使用した道具|道具|調理器具|使ったもの'
-  r'|使用した器具|動画の内容)',
+  r'|使用した器具|動画の内容)(?:はこちら|一覧)?$',
 );
 
 /// 見出しとしてのグループ名に使わない語
@@ -58,7 +60,7 @@ HeaderMatch? classifyHeader(String line) {
 
   if (_stepsHeader.hasMatch(core)) return const HeaderMatch(HeaderKind.steps);
 
-  if (core.length <= 15 && _otherHeader.hasMatch(core)) {
+  if (_otherHeader.hasMatch(core)) {
     return const HeaderMatch(HeaderKind.other);
   }
   return null;

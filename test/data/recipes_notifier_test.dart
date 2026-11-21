@@ -124,6 +124,34 @@ void main() {
     expect(() => notifier.addFromUrl('https://example.com'), appError('URL'));
   });
 
+  test('概要欄を編集して人数が書かれなくなったら、人数も消える', () async {
+    final c = container(FakeYoutubeApi({
+      'aaaaaaaaaaa': video('aaaaaaaaaaa', '【材料】(2人分)\n豚肉 200g'),
+    }));
+    final notifier = c.read(recipesProvider.notifier);
+    await notifier.addFromUrl('https://youtu.be/aaaaaaaaaaa');
+    expect(box.get('aaaaaaaaaaa')!.servings, '2人分');
+
+    await notifier.updateDescription('aaaaaaaaaaa', '【材料】\n豚肉 300g');
+
+    final updated = box.get('aaaaaaaaaaa')!;
+    expect(updated.servings, isNull);
+    expect(updated.ingredients, const [Ingredient(name: '豚肉', amount: '300g')]);
+  });
+
+  test('削除すると、保存先への書き込みを待たずに一覧から消える', () async {
+    final c = container(FakeYoutubeApi({
+      'aaaaaaaaaaa': video('aaaaaaaaaaa', _recipeDescription),
+    }));
+    final notifier = c.read(recipesProvider.notifier);
+    await notifier.addFromUrl('https://youtu.be/aaaaaaaaaaa');
+
+    final pending = notifier.delete('aaaaaaaaaaa');
+    expect(c.read(recipesProvider), isEmpty);
+    await pending;
+    expect(box.containsKey('aaaaaaaaaaa'), isFalse);
+  });
+
   test('旧形式のデータを Recipe に移し、旧 Box を削除する', () async {
     Hive.registerAdapter(VideoAdapter());
     final legacy = await Hive.openBox<Video>('Videos');

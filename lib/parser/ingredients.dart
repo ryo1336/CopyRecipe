@@ -6,6 +6,17 @@ final _amountStart = RegExp(
   r'|少量|半分|半個|半丁|ひとかけ|ひと片|ひとつ|\d|½|¼|¾)',
 );
 
+/// 空白なしの行で分量の書き出しとみなす文字列。
+///
+/// 材料名の中に現れうる語（「お好み焼き」の「好み」、「マグカップ」の「カップ」など）で
+/// 分けてしまわないよう、数字・大さじ・小さじと、行末にある「少々」などに限る
+final _inlineAmountStart = RegExp(
+  r'^(?:大さじ|小さじ|大匙|小匙|\d|½|¼|¾|(?:少々|適量|適宜|ひとつまみ|少量)$)',
+);
+
+/// 直前がこの文字なら、そこでは分けない（「(200g)」の途中や「1/2」の途中）
+final _noSplitAfter = RegExp(r'[\d(/.]');
+
 /// 分量らしい文字列が含まれているか
 final _amountLike = RegExp(
   r'\d|大さじ|小さじ|大匙|小匙|カップ|少々|適量|適宜|お好み|ひとつまみ|ひとつかみ|少量|半分'
@@ -167,9 +178,8 @@ Ingredient? parseIngredientLine(String line, {String? group}) {
 
   // 空白なしの「豚バラ肉200g」「砂糖大さじ1」
   for (var i = 1; i < text.length; i++) {
-    final prev = text[i - 1];
-    if (RegExp(r'[\d(]').hasMatch(prev)) continue;
-    if (_amountStart.hasMatch(text.substring(i))) {
+    if (_noSplitAfter.hasMatch(text[i - 1])) continue;
+    if (_inlineAmountStart.hasMatch(text.substring(i))) {
       return (text.substring(0, i), text.substring(i));
     }
   }

@@ -132,6 +132,9 @@ void main() {
       '豚肉(200g)': const Ingredient(name: '豚肉', amount: '200g'),
       '塩……ひとつまみ': const Ingredient(name: '塩', amount: 'ひとつまみ'),
       '小ねぎ': const Ingredient(name: '小ねぎ'),
+      '塩少々': const Ingredient(name: '塩', amount: '少々'),
+      'お好み焼きソース大さじ2': const Ingredient(name: 'お好み焼きソース', amount: '大さじ2'),
+      'マグカップ1杯の水': const Ingredient(name: 'マグカップ', amount: '1杯の水'),
     };
     cases.forEach((input, expected) {
       test(input, () => expect(parseIngredientLine(input), expected));
@@ -178,6 +181,22 @@ void main() {
 
     test('文中の「材料」は見出しとみなさない', () {
       expect(classifyHeader('材料をすべて混ぜる'), isNull);
+    });
+
+    test('「ポイント」「注意」などは行全体が一致するときだけ見出しとみなす', () {
+      expect(classifyHeader('【ポイント】')?.kind, HeaderKind.other);
+      expect(classifyHeader('▼関連動画はこちら')?.kind, HeaderKind.other);
+      expect(classifyHeader('注意しながら弱火で焼く'), isNull);
+      expect(classifyHeader('おすすめの薬味 適量'), isNull);
+    });
+
+    test('「注意」「おすすめ」で始まる本文の行で欄が途切れない', () {
+      final r = parseRecipe(
+        '材料\n豚肉 200g\nおすすめの薬味 適量\nねぎ 1本\n\n'
+        '作り方\n肉を焼く\n注意しながら弱火で焼く\n皿に盛る',
+      );
+      expect(r.ingredients.map((i) => i.name), ['豚肉', 'おすすめの薬味', 'ねぎ']);
+      expect(r.steps.map((s) => s.text), ['肉を焼く', '注意しながら弱火で焼く', '皿に盛る']);
     });
   });
 

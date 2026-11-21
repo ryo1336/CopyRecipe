@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -52,14 +53,23 @@ final youtubeApiProvider = Provider<YoutubeApi>((ref) {
 });
 
 class YoutubeApi {
-  YoutubeApi({required http.Client client, required String apiKey})
-      : _client = client,
+  YoutubeApi({
+    required http.Client client,
+    required String apiKey,
+    this.timeout = defaultTimeout,
+  })  : _client = client,
         _apiKey = apiKey;
 
   final http.Client _client;
   final String _apiKey;
 
+  /// 1回のリクエストの待ち時間の上限。
+  /// 電波が悪いときにスピナーが回り続けないよう、利用者が待てる程度の長さにしている
+  static const defaultTimeout = Duration(seconds: 15);
+  final Duration timeout;
+
   static const _host = 'www.googleapis.com';
+  static const _networkError = '通信できませんでした。ネットワーク接続を確認してください';
 
   /// 再生リストから取り込む動画数の上限（API 使用量を抑えるため）
   static const maxPlaylistVideos = 200;
@@ -121,11 +131,15 @@ class YoutubeApi {
     final url = Uri.https(_host, path, {...params, 'key': _apiKey});
     final http.Response response;
     try {
-      response = await _client.get(url);
+      response = await _client.get(url).timeout(timeout);
+    } on TimeoutException {
+      throw const AppException('通信がタイムアウトしました。電波の良い場所で再度お試しください');
     } on SocketException {
-      throw const AppException('通信できませんでした。ネットワーク接続を確認してください');
+      throw const AppException(_networkError);
+    } on TlsException {
+      throw const AppException(_networkError);
     } on http.ClientException {
-      throw const AppException('通信できませんでした。ネットワーク接続を確認してください');
+      throw const AppException(_networkError);
     }
 
     if (response.statusCode == 200) {
