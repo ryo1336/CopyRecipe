@@ -35,8 +35,8 @@ final _groupMarker = RegExp(r'^([★☆◎◇▲△])\s*');
 /// 括弧で囲まれた行（【A】、(タレ) など）
 final _bracketed = RegExp(r'^[【\[(<〈《「『]\s*(.+?)\s*[】\])>〉》」』]$');
 
-/// 行頭の1文字アルファベット（「A 醤油 大さじ1」）
-final _letterPrefix = RegExp(r'^([A-Z])(?:\s+|[.:)]\s*)(.+)$');
+/// 行頭の1文字アルファベット（「A 醤油 大さじ1」「a. 砂糖 大さじ1」）
+final _letterPrefix = RegExp(r'^([A-Za-z])(?:\s+|[.:)]\s*)(.+)$');
 
 /// グループ見出しによく使われる語
 final _groupWords = RegExp(
@@ -78,11 +78,14 @@ List<Ingredient> parseIngredientLines(List<String> lines) {
     }
 
     // A だけの行
-    if (RegExp(r'^[A-Z]$').hasMatch(line)) {
+    if (RegExp(r'^[A-Za-z]$').hasMatch(line)) {
       currentGroup = line;
       groupHasItems = false;
       continue;
     }
+
+    // 「・a. 砂糖」のように箇条書き記号の後にグループ記号が来ることがあるので、先に外す
+    line = line.replaceFirst(_plainBullet, '');
 
     // 「A 醤油 大さじ1」
     String? lineGroup;

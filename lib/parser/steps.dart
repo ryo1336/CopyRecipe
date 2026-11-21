@@ -18,6 +18,7 @@ bool isNumberedStepLine(String line) => _strictNumbered.hasMatch(line.trim());
 /// 作り方欄の行のリストを工程のリストに変換する。
 ///
 /// - 番号付きの行があれば、番号ごとに1工程とし、番号のない行は直前の工程に続けて書く
+///   （最初の番号付きの行より前にある行は、下ごしらえなどの独立した工程にする）
 /// - 番号付きの行がなければ、1行を1工程とする
 /// - 行頭（または行末）にタイムスタンプがあれば、その工程の開始時刻にする
 ///
@@ -29,6 +30,7 @@ List<RecipeStep> parseStepLines(List<String> lines) {
   );
 
   final steps = <_StepBuilder>[];
+  var seenNumbered = false;
   for (final text in texts) {
     final chapter = parseTimestampLine(text);
     if (chapter != null) {
@@ -38,10 +40,16 @@ List<RecipeStep> parseStepLines(List<String> lines) {
 
     final numbered = _strictNumbered.firstMatch(text) ?? _looseNumbered.firstMatch(text);
     if (numbered != null) {
+      seenNumbered = true;
       steps.add(_StepBuilder(text.substring(numbered.end).trim(), null));
     } else if (hasNumbered) {
-      // 番号なしの行は直前の工程の続き（番号付きの工程が始まる前の前置きは捨てる）
-      if (steps.isNotEmpty) steps.last.append(text);
+      // 番号なしの行は直前の工程の続き。番号付きの工程より前にある行は
+      // 「下ごしらえ」などの独立した工程として扱う
+      if (steps.isNotEmpty && seenNumbered) {
+        steps.last.append(text);
+      } else {
+        steps.add(_StepBuilder(text.replaceFirst(_bullet, ''), null));
+      }
     } else {
       steps.add(_StepBuilder(text.replaceFirst(_bullet, ''), null));
     }

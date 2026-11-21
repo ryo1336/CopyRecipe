@@ -11,17 +11,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 Recipe recipe(String id, String description) => Recipe(
-      videoId: id,
-      title: 't',
-      channelTitle: 'c',
-      thumbnailUrl: null,
-      rawDescription: description,
-      ingredients: const [Ingredient(name: '豚肉', amount: '200g')],
-      steps: const [RecipeStep(text: '焼く')],
-      servings: null,
-      addedAt: DateTime(2026),
-      parserVersion: 1,
-    );
+  videoId: id,
+  title: 't',
+  channelTitle: 'c',
+  thumbnailUrl: null,
+  rawDescription: description,
+  ingredients: const [Ingredient(name: '豚肉', amount: '200g')],
+  steps: const [RecipeStep(text: '焼く')],
+  servings: null,
+  addedAt: DateTime(2026),
+  parserVersion: 1,
+);
 
 void main() {
   late Directory dir;
@@ -40,9 +40,11 @@ void main() {
     box = await Hive.openBox<Recipe>(recipesBoxName);
     await box.put('aaaaaaaaaaa', recipe('aaaaaaaaaaa', '材料\n豚肉 200g'));
     await box.put('bbbbbbbbbbb', recipe('bbbbbbbbbbb', '材料\n牛肉 100g'));
-    container = ProviderContainer(overrides: [
-      recipeRepositoryProvider.overrideWithValue(RecipeRepository(box)),
-    ]);
+    container = ProviderContainer(
+      overrides: [
+        recipeRepositoryProvider.overrideWithValue(HiveRecipeRepository(box)),
+      ],
+    );
   });
 
   tearDown(() async {
@@ -63,9 +65,25 @@ void main() {
 
     await container
         .read(recipesProvider.notifier)
-        .updateDescription('aaaaaaaaaaa', '材料\n鶏肉 300g');
+        .saveEdited(
+          'aaaaaaaaaaa',
+          ingredients: const [Ingredient(name: '鶏肉', amount: '300g')],
+          steps: const [RecipeStep(text: '焼く')],
+          servings: null,
+        );
 
     expect(container.read(provider).isEmpty, isTrue);
+  });
+
+  test('ステップモードで進んだ工程は完了にする（二重には付けない）', () {
+    final provider = cookingChecksProvider('aaaaaaaaaaa');
+    final sub = container.listen(provider, (_, _) {});
+    addTearDown(sub.close);
+
+    container.read(provider.notifier)
+      ..checkStep(0)
+      ..checkStep(0);
+    expect(container.read(provider).steps, {0});
   });
 
   test('別のレシピが変わっても、チェックは残す', () async {
@@ -74,10 +92,9 @@ void main() {
     addTearDown(sub.close);
 
     container.read(provider.notifier).toggleIngredient(0);
-    await container.read(recipesProvider.notifier).delete('bbbbbbbbbbb');
     await container
         .read(recipesProvider.notifier)
-        .updateDescription('bbbbbbbbbbb', '材料\n牛肉 200g');
+        .resetToExtracted('bbbbbbbbbbb');
 
     expect(container.read(provider).ingredients, {0});
   });

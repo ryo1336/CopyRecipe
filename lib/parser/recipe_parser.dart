@@ -7,7 +7,7 @@ import 'sections.dart';
 import 'steps.dart';
 
 /// 抽出処理の版。ルールを変えたら上げる（保存済みレシピの再抽出に使う）
-const int kParserVersion = 1;
+const int kParserVersion = 2;
 
 class ParseResult {
   final List<Ingredient> ingredients;

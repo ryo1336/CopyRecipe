@@ -18,7 +18,11 @@ class HiveSettingsStore implements SettingsStore {
   final Box<dynamic> _box;
 
   @override
-  String? getString(String key) => _box.get(key) as String?;
+  String? getString(String key) {
+    // 将来、保存形式を変えても古い値で落ちないよう、文字列以外は「設定なし」とみなす
+    final value = _box.get(key);
+    return value is String ? value : null;
+  }
 
   @override
   void setString(String key, String value) => _box.put(key, value);
