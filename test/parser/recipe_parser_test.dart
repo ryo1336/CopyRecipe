@@ -95,6 +95,26 @@ void main() {
       ]);
     });
 
+    test('07: 小文字のグループ記号と、番号付き工程の前の下ごしらえ', () {
+      final r = parseRecipe(fixture('07_lowercase_group_prep.txt'));
+
+      expect(r.servings, '2〜3人分');
+      expect(r.ingredients, const [
+        Ingredient(name: '鶏もも肉', amount: '300g'),
+        Ingredient(name: '大根', amount: '1/4本'),
+        Ingredient(name: '砂糖', amount: '大さじ1', group: 'a'),
+        Ingredient(name: 'しょうゆ', amount: '大さじ2', group: 'a'),
+        Ingredient(name: '水', amount: '100cc', group: 'a'),
+        Ingredient(name: 'サラダ油', amount: '大さじ1/2'),
+      ]);
+      expect(r.steps.map((s) => s.text).toList(), [
+        '大根は皮をむいて2cm幅の半月切りにします。',
+        '鍋にサラダ油を熱し、鶏もも肉を焼きます。',
+        '大根と(a)を加え、落とし蓋をして15分煮ます。',
+        '器に盛り付けて完成です。',
+      ]);
+    });
+
     test('06: 「〇〇の材料」見出しのグループと、番号なしの工程', () {
       final r = parseRecipe(fixture('06_group_sections.txt'));
 
@@ -126,8 +146,7 @@ void main() {
       '豚バラ肉200g': const Ingredient(name: '豚バラ肉', amount: '200g'),
       '砂糖大さじ1': const Ingredient(name: '砂糖', amount: '大さじ1'),
       '塩 こしょう 少々': const Ingredient(name: '塩 こしょう', amount: '少々'),
-      'ごま油 (炒め用) 大さじ1':
-          const Ingredient(name: 'ごま油 (炒め用)', amount: '大さじ1'),
+      'ごま油 (炒め用) 大さじ1': const Ingredient(name: 'ごま油 (炒め用)', amount: '大さじ1'),
       '鶏もも肉 1枚 (300g)': const Ingredient(name: '鶏もも肉', amount: '1枚 (300g)'),
       '豚肉(200g)': const Ingredient(name: '豚肉', amount: '200g'),
       '塩……ひとつまみ': const Ingredient(name: '塩', amount: 'ひとつまみ'),

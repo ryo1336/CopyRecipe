@@ -26,7 +26,7 @@ final _servingsOnlyHeader = RegExp(r'^\d+(?:人分|人前)(?:の材料)?$');
 
 final _stepsHeader = RegExp(
   r'^(?:(.{1,10}?)の)?(?:作り方|つくり方|作りかた|手順|調理手順|工程|調理工程|レシピ手順'
-  r'|howto|howtomake|directions|method)(?:はこちら)?\d*$',
+  r'|howto|howtomake|directions|method|下ごしらえ|下準備)(?:はこちら)?\d*$',
 );
 
 /// 材料・作り方以外の見出し。本文の行（「注意しながら焼く」など）を見出しと
