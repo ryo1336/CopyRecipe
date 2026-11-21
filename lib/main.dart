@@ -26,7 +26,7 @@ void main() async {
 
   // 旧形式のデータの移行と、古い版の抽出処理で作ったレシピの再抽出
   await migrateLegacyVideos(recipes);
-  await RecipeRepository(recipes).reparseOutdated();
+  await HiveRecipeRepository(recipes).reparseOutdated();
 
   runApp(const ProviderScope(child: MainApp()));
 }

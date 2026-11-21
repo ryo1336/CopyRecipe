@@ -8,16 +8,12 @@ class RecipeTile extends ConsumerWidget {
   final Recipe recipe;
   final VoidCallback onTap;
 
-  const RecipeTile({
-    super.key,
-    required this.recipe,
-    required this.onTap,
-  });
+  const RecipeTile({super.key, required this.recipe, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(recipesProvider.notifier);
-    
+
     return Dismissible(
       key: Key(recipe.videoId),
       background: Container(
@@ -28,9 +24,18 @@ class RecipeTile extends ConsumerWidget {
       ),
       onDismissed: (direction) {
         notifier.delete(recipe.videoId);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${recipe.title} を削除しました')),
-        );
+        // 続けて削除したときに古い通知が並ばないよう、前の通知は閉じる
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('${recipe.title} を削除しました'),
+              action: SnackBarAction(
+                label: '元に戻す',
+                onPressed: () => notifier.restore(recipe),
+              ),
+            ),
+          );
       },
       child: Card(
         margin: EdgeInsets.all(5.0),
@@ -46,15 +51,12 @@ class RecipeTile extends ConsumerWidget {
               Expanded(
                 child: Text(
                   recipe.title,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 12.0,
-                  ),
+                  style: const TextStyle(color: Colors.black, fontSize: 12.0),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 3,
                 ),
               ),
-            ]
+            ],
           ),
         ),
       ),
@@ -87,7 +89,8 @@ class _Thumbnail extends StatelessWidget {
       height: _height,
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => placeholder,
-      loadingBuilder: (_, child, progress) => progress == null ? child : placeholder,
+      loadingBuilder: (_, child, progress) =>
+          progress == null ? child : placeholder,
     );
   }
 }

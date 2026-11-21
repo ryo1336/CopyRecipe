@@ -31,10 +31,9 @@ class CookingChecksNotifier extends Notifier<CookingChecks> {
     // 抽出し直すと材料・工程のリストが新しいインスタンスになるので、
     // それを監視して build をやり直し、チェックを空に戻す
     ref.watch(
-      recipesProvider.select((list) {
-        final recipe = list.where((r) => r.videoId == videoId).firstOrNull;
-        return (recipe?.ingredients, recipe?.steps);
-      }),
+      recipeByIdProvider(
+        videoId,
+      ).select((recipe) => (recipe?.ingredients, recipe?.steps)),
     );
     return const CookingChecks();
   }
@@ -50,6 +49,15 @@ class CookingChecksNotifier extends Notifier<CookingChecks> {
     state = CookingChecks(
       ingredients: state.ingredients,
       steps: _toggle(state.steps, index),
+    );
+  }
+
+  /// ステップモードで「次へ」進んだ工程を、完了として付ける
+  void checkStep(int index) {
+    if (state.steps.contains(index)) return;
+    state = CookingChecks(
+      ingredients: state.ingredients,
+      steps: {...state.steps, index},
     );
   }
 

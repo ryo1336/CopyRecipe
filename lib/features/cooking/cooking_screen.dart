@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/ingredient.dart';
 import '../../models/recipe.dart';
 import '../../models/recipe_step.dart';
 import '../../parser/chapters.dart';
+import '../../parser/serialize.dart';
 import '../../providers/recipes_provider.dart';
-import '../recipe_edit/raw_description_edit_screen.dart';
+import '../recipe_edit/recipe_edit_screen.dart';
 import 'cooking_checks.dart';
 import 'cooking_settings.dart';
+import 'cooking_widgets.dart';
 import 'platform_services.dart';
+import 'step_mode_screen.dart';
 
 /// 料理中に見る画面。材料と作り方を1画面に並べる
 class CookingScreen extends ConsumerStatefulWidget {
@@ -28,7 +30,8 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
   @override
   void initState() {
     super.initState();
-    // 料理中に画面が消えないよう、開いている間はスリープを止める
+    // 料理中に画面が消えないよう、開いている間はスリープを止める。
+    // ステップモードや編集画面はこの画面の上に重なるので、そこでも効き続ける
     _screenAwake = ref.read(screenAwakeProvider);
     _screenAwake.enable();
   }
@@ -37,17 +40,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
   void dispose() {
     _screenAwake.disable();
     super.dispose();
-  }
-
-  Future<void> _openVideo(Recipe recipe, [int startSeconds = 0]) async {
-    final opened = await ref
-        .read(videoLauncherProvider)
-        .open(recipe.videoId, startSeconds: startSeconds);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('動画を開けませんでした')));
-    }
   }
 
   Future<void> _copyIngredients(Recipe recipe) async {
@@ -65,18 +57,30 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RawDescriptionEditScreen(videoId: widget.videoId),
+        builder: (_) => RecipeEditScreen(videoId: widget.videoId),
+      ),
+    );
+  }
+
+  void _startStepMode(Recipe recipe) {
+    // 前回の続きから始められるよう、まだチェックしていない最初の工程を開く
+    final done = ref.read(cookingChecksProvider(widget.videoId)).steps;
+    final first = List.generate(
+      recipe.steps.length,
+      (i) => i,
+    ).where((i) => !done.contains(i)).firstOrNull;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            StepModeScreen(videoId: widget.videoId, initialStep: first ?? 0),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final recipe = ref.watch(
-      recipesProvider.select(
-        (list) => list.where((r) => r.videoId == widget.videoId).firstOrNull,
-      ),
-    );
+    final recipe = ref.watch(recipeByIdProvider(widget.videoId));
     if (recipe == null) {
       return Scaffold(
         appBar: AppBar(backgroundColor: Colors.amber),
@@ -89,7 +93,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
       cookingChecksProvider(widget.videoId).notifier,
     );
     final fontSize = ref.watch(cookingFontSizeProvider);
-    final styles = _CookingStyles(Theme.of(context), fontSize.scale);
+    final styles = CookingStyles.of(context, ref);
 
     return Scaffold(
       appBar: AppBar(
@@ -123,26 +127,19 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.edit),
-            tooltip: '概要欄を編集',
+            tooltip: 'レシピを編集',
             onPressed: _openEditor,
           ),
         ],
       ),
-      // 文字サイズの設定は、端末の文字サイズ設定に掛け合わせて本文全体に効かせる
-      body: MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: _MultipliedTextScaler(
-            MediaQuery.textScalerOf(context),
-            fontSize.scale,
-          ),
-        ),
+      body: CookingTextScale(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             _Header(
               recipe: recipe,
               styles: styles,
-              onOpenVideo: () => _openVideo(recipe),
+              onOpenVideo: () => openVideo(context, ref, recipe.videoId, 0),
             ),
             const SizedBox(height: 24),
 
@@ -165,11 +162,9 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                 onEdit: _openEditor,
               )
             else
-              ..._ingredientRows(
-                recipe.ingredients,
-                checks,
-                checksNotifier,
-                styles,
+              IngredientChecklist(
+                videoId: widget.videoId,
+                ingredients: recipe.ingredients,
               ),
             const SizedBox(height: 24),
 
@@ -191,7 +186,12 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                   onTap: () => checksNotifier.toggleStep(i),
                   onOpenVideo: step.startSeconds == null
                       ? null
-                      : () => _openVideo(recipe, step.startSeconds!),
+                      : () => openVideo(
+                          context,
+                          ref,
+                          recipe.videoId,
+                          step.startSeconds!,
+                        ),
                 ),
             const SizedBox(height: 24),
 
@@ -208,111 +208,47 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: recipe.steps.isEmpty
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: FilledButton.icon(
+                  onPressed: () => _startStepMode(recipe),
+                  icon: const Icon(Icons.slideshow),
+                  label: const Text('ステップモードで開始'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                ),
+              ),
+            ),
     );
   }
+}
 
-  List<Widget> _ingredientRows(
-    List<Ingredient> ingredients,
-    CookingChecks checks,
-    CookingChecksNotifier notifier,
-    _CookingStyles styles,
-  ) {
-    final rows = <Widget>[];
-    String? currentGroup;
-    for (final (i, ingredient) in ingredients.indexed) {
-      if (ingredient.group != currentGroup) {
-        currentGroup = ingredient.group;
-        if (currentGroup != null) {
-          rows.add(
-            Padding(
-              padding: const EdgeInsets.only(top: 12, bottom: 4),
-              child: Text(currentGroup, style: styles.group),
-            ),
-          );
-        }
-      }
-      rows.add(
-        _IngredientRow(
-          ingredient: ingredient,
-          checked: checks.ingredients.contains(i),
-          styles: styles,
-          onTap: () => notifier.toggleIngredient(i),
-        ),
-      );
-    }
-    return rows;
+/// 動画を開く。開けなければ通知を出す（料理中画面とステップモードで共通）
+Future<void> openVideo(
+  BuildContext context,
+  WidgetRef ref,
+  String videoId,
+  int startSeconds,
+) async {
+  final opened = await ref
+      .read(videoLauncherProvider)
+      .open(videoId, startSeconds: startSeconds);
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('動画を開けませんでした')));
   }
 }
 
 /// 材料をクリップボード用のテキストにする（グループは【】の見出しにする）
-String formatIngredientsForCopy(Recipe recipe) {
-  final lines = <String>[
-    if (recipe.servings != null) '材料（${recipe.servings}）' else '材料',
-  ];
-  String? currentGroup;
-  for (final ingredient in recipe.ingredients) {
-    if (ingredient.group != currentGroup) {
-      currentGroup = ingredient.group;
-      if (currentGroup != null) lines.add('【$currentGroup】');
-    }
-    lines.add(
-      ingredient.amount == null
-          ? ingredient.name
-          : '${ingredient.name} ${ingredient.amount}',
-    );
-  }
-  return lines.join('\n');
-}
-
-/// 端末の文字サイズ設定（[base]）に、アプリ内の文字サイズの倍率を掛ける
-class _MultipliedTextScaler extends TextScaler {
-  const _MultipliedTextScaler(this.base, this.factor);
-
-  final TextScaler base;
-  final double factor;
-
-  @override
-  double scale(double fontSize) => base.scale(fontSize) * factor;
-
-  @override
-  // ignore: deprecated_member_use
-  double get textScaleFactor => base.textScaleFactor * factor;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _MultipliedTextScaler &&
-      other.base == base &&
-      other.factor == factor;
-
-  @override
-  int get hashCode => Object.hash(base, factor);
-}
-
-/// 料理中画面の文字のスタイル
-class _CookingStyles {
-  ///
-  /// 文字の大きさの倍率は MediaQuery の textScaler で掛けるので、ここでは掛けない。
-  /// [scale] はアイコンや余白など、文字以外の大きさをそろえるのに使う。
-  _CookingStyles(ThemeData theme, this.scale)
-    : title = const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      section = const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      group = TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.bold,
-        color: theme.colorScheme.primary,
-      ),
-      body = const TextStyle(fontSize: 17, height: 1.4),
-      amount = const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-      caption = TextStyle(fontSize: 13, color: theme.hintColor);
-
-  final TextStyle title;
-  final TextStyle section;
-  final TextStyle group;
-  final TextStyle body;
-  final TextStyle amount;
-  final TextStyle caption;
-  final double scale;
-}
+String formatIngredientsForCopy(Recipe recipe) => [
+  if (recipe.servings != null) '材料（${recipe.servings}）' else '材料',
+  ...ingredientsToLines(recipe.ingredients).where((l) => l.isNotEmpty),
+].join('\n');
 
 class _Header extends StatelessWidget {
   const _Header({
@@ -322,7 +258,7 @@ class _Header extends StatelessWidget {
   });
 
   final Recipe recipe;
-  final _CookingStyles styles;
+  final CookingStyles styles;
   final VoidCallback onOpenVideo;
 
   @override
@@ -364,7 +300,7 @@ class _SectionTitle extends StatelessWidget {
   });
 
   final String title;
-  final _CookingStyles styles;
+  final CookingStyles styles;
   final Widget? trailing;
 
   @override
@@ -375,83 +311,6 @@ class _SectionTitle extends StatelessWidget {
         children: [
           Expanded(child: Text('■ $title', style: styles.section)),
           if (trailing != null) trailing!,
-        ],
-      ),
-    );
-  }
-}
-
-/// 行全体をタップするとチェックが付く。チェック済みの行は薄く表示する
-class _CheckableRow extends StatelessWidget {
-  const _CheckableRow({
-    required this.checked,
-    required this.onTap,
-    required this.semanticsLabel,
-    required this.child,
-  });
-
-  final bool checked;
-  final VoidCallback onTap;
-  final String semanticsLabel;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return MergeSemantics(
-      child: Semantics(
-        checked: checked,
-        label: semanticsLabel,
-        child: InkWell(
-          onTap: onTap,
-          // 濡れた手でも押しやすいよう、Material の推奨より高めにする
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 150),
-              opacity: checked ? 0.4 : 1,
-              child: child,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _IngredientRow extends StatelessWidget {
-  const _IngredientRow({
-    required this.ingredient,
-    required this.checked,
-    required this.styles,
-    required this.onTap,
-  });
-
-  final Ingredient ingredient;
-  final bool checked;
-  final _CookingStyles styles;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _CheckableRow(
-      checked: checked,
-      onTap: onTap,
-      semanticsLabel: '${ingredient.name} ${ingredient.amount ?? ''}',
-      child: Row(
-        children: [
-          _CheckIcon(checked: checked, scale: styles.scale),
-          const SizedBox(width: 8),
-          Expanded(child: Text(ingredient.name, style: styles.body)),
-          if (ingredient.amount != null) ...[
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                ingredient.amount!,
-                style: styles.amount,
-                textAlign: TextAlign.end,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -471,13 +330,13 @@ class _StepRow extends StatelessWidget {
   final int number;
   final RecipeStep step;
   final bool checked;
-  final _CookingStyles styles;
+  final CookingStyles styles;
   final VoidCallback onTap;
   final VoidCallback? onOpenVideo;
 
   @override
   Widget build(BuildContext context) {
-    return _CheckableRow(
+    return CheckableRow(
       checked: checked,
       onTap: onTap,
       semanticsLabel: '手順$number ${step.text}',
@@ -486,7 +345,7 @@ class _StepRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _CheckIcon(checked: checked, scale: styles.scale),
+            CheckIcon(checked: checked, scale: styles.scale),
             const SizedBox(width: 8),
             // 2桁以上の番号や大きな文字でも折り返さないよう、幅は最小値だけ決める
             ConstrainedBox(
@@ -514,22 +373,6 @@ class _StepRow extends StatelessWidget {
   }
 }
 
-class _CheckIcon extends StatelessWidget {
-  const _CheckIcon({required this.checked, required this.scale});
-
-  final bool checked;
-  final double scale;
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      checked ? Icons.check_box : Icons.check_box_outline_blank,
-      size: 24 * scale,
-      color: checked ? Theme.of(context).colorScheme.primary : null,
-    );
-  }
-}
-
 class _NotFound extends StatelessWidget {
   const _NotFound({
     required this.message,
@@ -538,7 +381,7 @@ class _NotFound extends StatelessWidget {
   });
 
   final String message;
-  final _CookingStyles styles;
+  final CookingStyles styles;
   final VoidCallback onEdit;
 
   @override
@@ -555,7 +398,7 @@ class _NotFound extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onEdit,
               icon: const Icon(Icons.edit),
-              label: const Text('概要欄を編集して追加'),
+              label: const Text('編集して追加'),
             ),
           ],
         ),
