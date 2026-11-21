@@ -15,14 +15,11 @@ class CookingChecks {
 /// 料理は1回ごとに終わるので保存はせず、画面を閉じたら破棄する（autoDispose）。
 final cookingChecksProvider = NotifierProvider.autoDispose
     .family<CookingChecksNotifier, CookingChecks, String>(
-      CookingChecksNotifier.new,
+      // 動画 ID はレシピごとに別のチェック状態を持つためのキーで、中では使わない
+      (_) => CookingChecksNotifier(),
     );
 
 class CookingChecksNotifier extends Notifier<CookingChecks> {
-  CookingChecksNotifier(this.videoId);
-
-  final String videoId;
-
   @override
   CookingChecks build() => const CookingChecks();
 

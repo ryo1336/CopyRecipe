@@ -101,12 +101,19 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
       ),
       body: CookingTextScale(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          // 下のボタンがなくなり本文が画面の下端まで届くので、
+          // ホームインジケーターなどの安全領域の分も余白に足す
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            32 + MediaQuery.paddingOf(context).bottom,
+          ),
           children: [
             _Header(
               recipe: recipe,
               styles: styles,
-              onOpenVideo: () => openVideo(context, ref, recipe.videoId, 0),
+              onOpenVideo: () => _openVideo(context, ref, recipe.videoId, 0),
             ),
             const SizedBox(height: 24),
 
@@ -123,10 +130,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                     ),
             ),
             if (recipe.ingredients.isEmpty)
-              _NotFound(
-                message: '材料が見つかりませんでした',
-                styles: styles,
-              )
+              _NotFound(message: '材料が見つかりませんでした', styles: styles)
             else
               IngredientChecklist(
                 videoId: widget.videoId,
@@ -137,10 +141,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
             // 作り方
             _SectionTitle(title: '作り方', styles: styles),
             if (recipe.steps.isEmpty)
-              _NotFound(
-                message: '工程が見つかりませんでした',
-                styles: styles,
-              )
+              _NotFound(message: '工程が見つかりませんでした', styles: styles)
             else
               for (final (i, step) in recipe.steps.indexed)
                 _StepRow(
@@ -151,7 +152,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                   onTap: () => checksNotifier.toggleStep(i),
                   onOpenVideo: step.startSeconds == null
                       ? null
-                      : () => openVideo(
+                      : () => _openVideo(
                           context,
                           ref,
                           recipe.videoId,
@@ -178,7 +179,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
 }
 
 /// 動画を開く。開けなければ通知を出す
-Future<void> openVideo(
+Future<void> _openVideo(
   BuildContext context,
   WidgetRef ref,
   String videoId,
@@ -324,10 +325,7 @@ class _StepRow extends StatelessWidget {
 }
 
 class _NotFound extends StatelessWidget {
-  const _NotFound({
-    required this.message,
-    required this.styles,
-  });
+  const _NotFound({required this.message, required this.styles});
 
   final String message;
   final CookingStyles styles;

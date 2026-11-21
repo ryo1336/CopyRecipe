@@ -16,6 +16,7 @@ void main() {
     env = TestEnv([
       sampleRecipe(),
       sampleRecipe(id: 'nosteps0000', steps: const []),
+      sampleRecipe(id: 'noingredien', ingredients: const []),
       sampleRecipe(
         id: 'manysteps00',
         steps: [for (var i = 1; i <= 12; i++) RecipeStep(text: '工程$i')],
@@ -103,10 +104,28 @@ void main() {
     expect(find.text('材料をコピーしました'), findsOneWidget);
   });
 
-  testWidgets('工程がなければ案内を出す', (tester) async {
+  testWidgets('工程がなければ、概要欄の全文や動画で確認するよう案内する', (tester) async {
     await pumpScreen(tester, videoId: 'nosteps0000');
 
     expect(find.text('工程が見つかりませんでした'), findsOneWidget);
+    expect(find.text('下の「概要欄の全文」や動画で確認してください'), findsOneWidget);
+  });
+
+  testWidgets('材料がなければ、コピーは出さずに案内する', (tester) async {
+    await pumpScreen(tester, videoId: 'noingredien');
+
+    expect(find.text('材料が見つかりませんでした'), findsOneWidget);
+    expect(find.text('下の「概要欄の全文」や動画で確認してください'), findsOneWidget);
+    expect(find.text('コピー'), findsNothing);
+  });
+
+  testWidgets('下端の安全領域の分だけ、本文の下に余白を足す', (tester) async {
+    tester.view.padding = const FakeViewPadding(bottom: 34);
+    addTearDown(tester.view.resetPadding);
+    await pumpScreen(tester);
+
+    final list = tester.widget<ListView>(find.byType(ListView).first);
+    expect((list.padding! as EdgeInsets).bottom, 32 + 34);
   });
 
   testWidgets('文字サイズを変えると表示に反映され、設定が保存される', (tester) async {

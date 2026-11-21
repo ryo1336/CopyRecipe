@@ -52,19 +52,24 @@ class HiveRecipeRepository implements RecipeRepository {
   @override
   Future<void> delete(String videoId) => _box.delete(videoId);
 
-  /// 古い版の抽出処理で作ったレシピを、原文から抽出し直す（手で直したものは除く）
+  /// 古い版の抽出処理で作ったレシピを、原文から抽出し直す。
+  ///
+  /// 編集機能は廃止したので、以前に手で直したレシピ（isEdited）も一度だけ抽出し直し、
+  /// 以後は抽出処理の改良が届くようにする（手で直した内容は原文からの抽出結果に戻る）。
   Future<void> reparseOutdated() async {
     final outdated = _box.values
-        .where((r) => !r.isEdited && r.parserVersion < kParserVersion)
+        .where((r) => r.isEdited || r.parserVersion < kParserVersion)
         .map((r) {
-      final parsed = parseRecipe(r.rawDescription);
-      return r.withParsedContent(
-        ingredients: parsed.ingredients,
-        steps: parsed.steps,
-        servings: parsed.servings,
-        parserVersion: kParserVersion,
-      );
-    }).toList();
+          final parsed = parseRecipe(r.rawDescription);
+          return r.withParsedContent(
+            ingredients: parsed.ingredients,
+            steps: parsed.steps,
+            servings: parsed.servings,
+            parserVersion: kParserVersion,
+            isEdited: false,
+          );
+        })
+        .toList();
     if (outdated.isNotEmpty) await putAll(outdated);
   }
 }

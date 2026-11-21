@@ -151,7 +151,7 @@ void main() {
     expect(() => notifier.addFromUrl('https://example.com'), appError('URL'));
   });
 
-  test('古い版の抽出処理で作ったレシピは抽出し直すが、手で直したものはそのまま', () async {
+  test('古い版の抽出処理で作ったレシピと、以前に手で直したレシピを抽出し直す', () async {
     final old = Recipe(
       videoId: 'old00000001',
       title: 't',
@@ -178,7 +178,7 @@ void main() {
         servings: null,
         addedAt: DateTime(2026),
         isEdited: true,
-        parserVersion: 0,
+        parserVersion: kParserVersion,
       ),
     );
 
@@ -188,9 +188,10 @@ void main() {
       Ingredient(name: '豚肉', amount: '200g'),
     ]);
     expect(box.get('old00000001')!.parserVersion, kParserVersion);
-    expect(box.get('edited00001')!.ingredients, const [
-      Ingredient(name: '手で直した'),
-    ]);
+    // 編集機能は廃止したので、手で直したレシピも原文からの抽出結果に戻す
+    final edited = box.get('edited00001')!;
+    expect(edited.ingredients, const [Ingredient(name: '豚肉', amount: '200g')]);
+    expect(edited.isEdited, isFalse);
   });
 
   test('削除したレシピを元に戻すと、元の位置に戻る', () async {
