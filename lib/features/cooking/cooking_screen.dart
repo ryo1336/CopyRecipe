@@ -55,7 +55,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
     final recipe = ref.watch(recipeByIdProvider(widget.videoId));
     if (recipe == null) {
       return Scaffold(
-        appBar: AppBar(backgroundColor: Colors.amber),
+        appBar: AppBar(),
         body: const Center(child: Text('このレシピは削除されました')),
       );
     }
@@ -69,8 +69,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.amber,
-        title: Text(recipe.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           PopupMenuButton<CookingFontSize>(
             icon: const Icon(Icons.format_size),
@@ -256,11 +254,21 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 離れた場所からでも区切りが分かるよう、見出しの左に基調色の縦線を置く
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Expanded(child: Text('■ $title', style: styles.section)),
+          Container(
+            width: 4,
+            height: 22 * styles.scale,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(title, style: styles.section)),
           if (trailing != null) trailing!,
         ],
       ),
@@ -298,12 +306,27 @@ class _StepRow extends StatelessWidget {
           children: [
             CheckIcon(checked: checked, scale: styles.scale),
             const SizedBox(width: 8),
+            // 番号は丸い札にして、工程の切れ目を目で追いやすくする。
             // 2桁以上の番号や大きな文字でも折り返さないよう、幅は最小値だけ決める
-            ConstrainedBox(
-              constraints: BoxConstraints(minWidth: 28 * styles.scale),
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text('$number', style: styles.amount, softWrap: false),
+            Container(
+              constraints: BoxConstraints(
+                minWidth: 28 * styles.scale,
+                minHeight: 28 * styles.scale,
+              ),
+              margin: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14 * styles.scale),
+              ),
+              child: Text(
+                '$number',
+                style: styles.amount.copyWith(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                softWrap: false,
               ),
             ),
             Expanded(child: Text(step.text, style: styles.body)),

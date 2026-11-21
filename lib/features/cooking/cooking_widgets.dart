@@ -202,19 +202,83 @@ class _IngredientRow extends StatelessWidget {
         children: [
           CheckIcon(checked: checked, scale: styles.scale),
           const SizedBox(width: 8),
-          Expanded(child: Text(ingredient.name, style: styles.body)),
-          if (ingredient.amount != null) ...[
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                ingredient.amount!,
-                style: styles.amount,
-                textAlign: TextAlign.end,
-              ),
-            ),
-          ],
+          Expanded(
+            child: ingredient.amount == null
+                ? Text(ingredient.name, style: styles.body)
+                : _NameAndAmount(
+                    name: ingredient.name,
+                    amount: ingredient.amount!,
+                    styles: styles,
+                  ),
+          ),
         ],
       ),
     );
   }
+}
+
+/// 「材料名 ・・・・・ 分量」の1行。
+///
+/// 分量を右端にそろえ、間を点線でつなぐ。行ごとに分量の位置がばらつかないので、
+/// 離れた場所からでも材料名から分量へ目で追える。
+/// 材料名は行の幅の 42%、分量は 50% までで折り返し、残りをすべて点線にする
+/// （Flexible で幅を分けると、材料名が使わなかった分が行末の空白になり、分量が右端にそろわない）。
+class _NameAndAmount extends StatelessWidget {
+  const _NameAndAmount({
+    required this.name,
+    required this.amount,
+    required this.styles,
+  });
+
+  final String name;
+  final String amount;
+  final CookingStyles styles;
+
+  @override
+  Widget build(BuildContext context) {
+    final dotColor = Theme.of(context).colorScheme.outlineVariant;
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.42),
+            child: Text(name, style: styles.body),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: CustomPaint(
+              size: const Size.fromHeight(4),
+              painter: _DotLeaderPainter(dotColor),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.5),
+            child: Text(amount, style: styles.amount, textAlign: TextAlign.end),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DotLeaderPainter extends CustomPainter {
+  const _DotLeaderPainter(this.color);
+
+  final Color color;
+
+  static const _gap = 6.0;
+  static const _radius = 1.3;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final y = size.height / 2;
+    for (var x = _radius; x < size.width; x += _gap) {
+      canvas.drawCircle(Offset(x, y), _radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotLeaderPainter old) => old.color != color;
 }
