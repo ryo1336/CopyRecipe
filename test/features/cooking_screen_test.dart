@@ -55,23 +55,15 @@ void main() {
     expect(find.text('概要欄の原文です'), findsOneWidget);
   });
 
-  testWidgets('行をタップするとチェックが付き、まとめて外せる', (tester) async {
+  testWidgets('チェックボックスは出さず、行をタップしても何も変わらない', (tester) async {
     await pumpScreen(tester);
+    expect(find.byIcon(Icons.check_box_outline_blank), findsNothing);
     expect(find.byIcon(Icons.check_box), findsNothing);
-    expect(find.byTooltip('すべてのチェックを外す'), findsNothing);
 
     await tester.tap(find.text('豚バラ肉'));
     await tester.tap(find.text('大根を切る'));
     await tester.pump();
-    expect(find.byIcon(Icons.check_box), findsNWidgets(2));
-
-    await tester.tap(find.text('豚バラ肉'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_box), findsOneWidget);
-
-    await tester.tap(find.byTooltip('すべてのチェックを外す'));
-    await tester.pump();
-    expect(find.byIcon(Icons.check_box), findsNothing);
+    expect(find.byType(AnimatedOpacity), findsOneWidget); // 上のバーのタイトルだけ
   });
 
   testWidgets('時刻ボタンでその時刻から、「動画を開く」で最初から動画を開く', (tester) async {
@@ -82,8 +74,6 @@ void main() {
     await tester.pump();
 
     expect(env.launcher.opened, [('aaaaaaaaaaa', 72), ('aaaaaaaaaaa', 0)]);
-    // 時刻ボタンを押してもチェックは付かない
-    expect(find.byIcon(Icons.check_box), findsNothing);
   });
 
   testWidgets('材料をグループ見出し付きでコピーする', (tester) async {

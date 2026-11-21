@@ -7,7 +7,6 @@ import '../../models/recipe_step.dart';
 import '../../parser/chapters.dart';
 import '../../parser/serialize.dart';
 import '../../providers/recipes_provider.dart';
-import 'cooking_checks.dart';
 import 'cooking_settings.dart';
 import 'cooking_widgets.dart';
 import 'platform_services.dart';
@@ -70,10 +69,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
       );
     }
 
-    final checks = ref.watch(cookingChecksProvider(widget.videoId));
-    final checksNotifier = ref.read(
-      cookingChecksProvider(widget.videoId).notifier,
-    );
     final fontSize = ref.watch(cookingFontSizeProvider);
     final styles = CookingStyles.of(context, ref);
 
@@ -111,12 +106,6 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                 ),
             ],
           ),
-          if (!checks.isEmpty)
-            IconButton(
-              icon: const Icon(Icons.restart_alt),
-              tooltip: 'すべてのチェックを外す',
-              onPressed: checksNotifier.reset,
-            ),
         ],
       ),
       body: CookingTextScale(
@@ -153,10 +142,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
             if (recipe.ingredients.isEmpty)
               _NotFound(message: '材料が見つかりませんでした', styles: styles)
             else
-              IngredientChecklist(
-                videoId: widget.videoId,
-                ingredients: recipe.ingredients,
-              ),
+              IngredientList(ingredients: recipe.ingredients),
             const SizedBox(height: 24),
 
             // 作り方
@@ -168,9 +154,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
                 _StepRow(
                   number: i + 1,
                   step: step,
-                  checked: checks.steps.contains(i),
                   styles: styles,
-                  onTap: () => checksNotifier.toggleStep(i),
                   onOpenVideo: step.startSeconds == null
                       ? null
                       : () => _openVideo(
@@ -303,32 +287,23 @@ class _StepRow extends StatelessWidget {
   const _StepRow({
     required this.number,
     required this.step,
-    required this.checked,
     required this.styles,
-    required this.onTap,
     required this.onOpenVideo,
   });
 
   final int number;
   final RecipeStep step;
-  final bool checked;
   final CookingStyles styles;
-  final VoidCallback onTap;
   final VoidCallback? onOpenVideo;
 
   @override
   Widget build(BuildContext context) {
-    return CheckableRow(
-      checked: checked,
-      onTap: onTap,
-      semanticsLabel: '手順$number ${step.text}',
+    return RecipeRow(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CheckIcon(checked: checked, scale: styles.scale),
-            const SizedBox(width: 8),
             // 番号は丸い札にして、工程の切れ目を目で追いやすくする。
             // 2桁以上の番号や大きな文字でも折り返さないよう、幅は最小値だけ決める
             Container(
