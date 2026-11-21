@@ -49,7 +49,7 @@ void main() {
 
     expect(textOf(tester, '人数'), '2人分');
     expect(textOf(tester, '材料'), '豚バラ肉 200g\n大根 1/3本\n【A】\n醤油 大さじ2\nみりん 大さじ2');
-    expect(textOf(tester, '作り方'), '1:12 大根を切る\n豚肉を炒める');
+    expect(textOf(tester, '作り方'), '1. 1:12 大根を切る\n2. 豚肉を炒める');
   });
 
   testWidgets('保存すると構造化して保存し、手で直した印を付けて閉じる', (tester) async {
@@ -77,12 +77,24 @@ void main() {
 
   testWidgets('保存ボタンを連打しても、保存も画面を閉じるのも1回だけ', (tester) async {
     await pumpEditor(tester, env);
+    await tester.enterText(field('人数'), '4人分');
 
     await tester.tap(find.byTooltip('保存'));
     await tester.tap(find.byTooltip('保存'), warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(env.repository.putCount, 1);
+    expect(find.text('開く'), findsOneWidget);
+  });
+
+  testWidgets('何も変えずに保存したら、保存せずに閉じる（手で直した扱いにしない）', (tester) async {
+    await pumpEditor(tester, env);
+
+    await tester.tap(find.byTooltip('保存'));
+    await tester.pumpAndSettle();
+
+    expect(env.repository.putCount, 0);
+    expect(env.repository.get('aaaaaaaaaaa')!.isEdited, isFalse);
     expect(find.text('開く'), findsOneWidget);
   });
 

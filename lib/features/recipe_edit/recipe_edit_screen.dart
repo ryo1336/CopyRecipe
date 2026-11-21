@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/recipe.dart';
-import '../../parser/ingredients.dart';
 import '../../parser/serialize.dart';
-import '../../parser/steps.dart';
 import '../../providers/recipes_provider.dart';
 
 /// 材料・作り方・人数を手で直す画面。
@@ -60,14 +58,21 @@ class _RecipeEditScreenState extends ConsumerState<RecipeEditScreen> {
   Future<void> _save() async {
     // 連打で保存と画面を閉じる処理が二重に走らないようにする
     if (_saving) return;
+    // 何も変えていなければ保存しない（「手で直した」扱いにしない・チェックも消さない）
+    if (_current == _initial) {
+      Navigator.pop(context);
+      return;
+    }
     setState(() => _saving = true);
     final servings = _servings.text.trim();
     await ref
         .read(recipesProvider.notifier)
         .saveEdited(
           widget.videoId,
-          ingredients: parseIngredientLines(_ingredients.text.split('\n')),
-          steps: parseStepLines(_steps.text.split('\n')),
+          ingredients: parseEditedIngredientLines(
+            _ingredients.text.split('\n'),
+          ),
+          steps: parseEditedStepLines(_steps.text.split('\n')),
           servings: servings.isEmpty ? null : servings,
         );
     if (mounted) Navigator.pop(context);
@@ -171,7 +176,7 @@ class _RecipeEditScreenState extends ConsumerState<RecipeEditScreen> {
               maxLines: null,
               decoration: const InputDecoration(
                 labelText: '材料',
-                helperText: '1行に1つ、「材料名 分量」の形で入力。グループは【A】のように見出しの行を入れます',
+                helperText: '1行に1つ、「材料名 分量」の形で入力。グループは【A】のような見出しの行で始め、空行で終えます',
                 helperMaxLines: 3,
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(),
@@ -184,7 +189,8 @@ class _RecipeEditScreenState extends ConsumerState<RecipeEditScreen> {
               maxLines: null,
               decoration: const InputDecoration(
                 labelText: '作り方',
-                helperText: '1行に1工程。行頭に「1:12」のように時刻を書くと、動画のその時刻へのリンクになります',
+                helperText:
+                    '1行に1工程（行頭の番号は省略できます）。番号の後に「1:12」のように時刻を書くと、動画のその時刻へのリンクになります。字下げした行は前の工程の続きになります',
                 helperMaxLines: 3,
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(),
