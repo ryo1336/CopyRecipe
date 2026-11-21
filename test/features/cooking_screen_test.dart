@@ -1,143 +1,34 @@
-import 'dart:io';
-
-import 'package:copy_recipe/data/recipe_repository.dart';
 import 'package:copy_recipe/features/cooking/cooking_screen.dart';
 import 'package:copy_recipe/features/cooking/cooking_settings.dart';
-import 'package:copy_recipe/features/cooking/platform_services.dart';
+import 'package:copy_recipe/features/cooking/step_mode_screen.dart';
 import 'package:copy_recipe/models/ingredient.dart';
-import 'package:copy_recipe/models/recipe.dart';
 import 'package:copy_recipe/models/recipe_step.dart';
 import 'package:copy_recipe/parser/chapters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 
-class FakeScreenAwake implements ScreenAwake {
-  bool enabled = false;
-
-  @override
-  Future<void> enable() async => enabled = true;
-
-  @override
-  Future<void> disable() async => enabled = false;
-}
-
-class FakeSettingsStore implements SettingsStore {
-  final values = <String, String>{};
-
-  @override
-  String? getString(String key) => values[key];
-
-  @override
-  void setString(String key, String value) => values[key] = value;
-}
-
-/// メモリ上だけで読み書きする RecipeRepository。ウィジェットテストの疑似時間の中では
-/// Hive のファイル書き込みが完了せず、後片付けで止まってしまうため使う
-class InMemoryRecipeRepository extends RecipeRepository {
-  InMemoryRecipeRepository(super.seed)
-      : _recipes = {for (final r in seed.values) r.videoId: r};
-
-  final Map<String, Recipe> _recipes;
-  int putCount = 0;
-
-  @override
-  List<Recipe> all() => _recipes.values.toList();
-
-  @override
-  Recipe? get(String videoId) => _recipes[videoId];
-
-  @override
-  Future<void> put(Recipe recipe) async {
-    putCount++;
-    _recipes[recipe.videoId] = recipe;
-  }
-}
-
-class FakeVideoLauncher implements VideoLauncher {
-  final opened = <(String, int)>[];
-
-  @override
-  Future<bool> open(String videoId, {int startSeconds = 0}) async {
-    opened.add((videoId, startSeconds));
-    return true;
-  }
-}
-
-Recipe recipe({
-  String id = 'aaaaaaaaaaa',
-  List<RecipeStep> steps = const [
-    RecipeStep(text: '大根を切る', startSeconds: 72),
-    RecipeStep(text: '豚肉を炒める'),
-  ],
-}) =>
-    Recipe(
-      videoId: id,
-      title: '豚バラ大根',
-      channelTitle: 'テストチャンネル',
-      thumbnailUrl: null,
-      rawDescription: '概要欄の原文です',
-      ingredients: const [
-        Ingredient(name: '豚バラ肉', amount: '200g'),
-        Ingredient(name: '大根', amount: '1/3本'),
-        Ingredient(name: '醤油', amount: '大さじ2', group: 'A'),
-        Ingredient(name: 'みりん', amount: '大さじ2', group: 'A'),
-      ],
-      steps: steps,
-      servings: '2人分',
-      addedAt: DateTime(2026),
-      parserVersion: 1,
-    );
+import '../helpers/fakes.dart';
 
 void main() {
-  late Directory dir;
-  late Box<Recipe> recipes;
-  late FakeSettingsStore settings;
-  late FakeScreenAwake screenAwake;
-  late FakeVideoLauncher launcher;
+  late TestEnv env;
 
-  setUpAll(() {
-    Hive.registerAdapter(RecipeAdapter());
-    Hive.registerAdapter(IngredientAdapter());
-    Hive.registerAdapter(RecipeStepAdapter());
-  });
-
-  setUp(() async {
-    dir = await Directory.systemTemp.createTemp('cooking_screen_test');
-    Hive.init(dir.path);
-    recipes = await Hive.openBox<Recipe>(recipesBoxName);
-    settings = FakeSettingsStore();
-    await recipes.put('aaaaaaaaaaa', recipe());
-    await recipes.put('nosteps0000', recipe(id: 'nosteps0000', steps: const []));
-    screenAwake = FakeScreenAwake();
-    launcher = FakeVideoLauncher();
-  });
-
-  tearDown(() async {
-    await Hive.close();
-    await dir.delete(recursive: true);
+  setUp(() {
+    env = TestEnv([
+      sampleRecipe(),
+      sampleRecipe(id: 'nosteps0000', steps: const []),
+      sampleRecipe(
+        id: 'manysteps00',
+        steps: [for (var i = 1; i <= 12; i++) RecipeStep(text: '工程$i')],
+      ),
+    ]);
   });
 
   Future<void> pumpScreen(
     WidgetTester tester, {
     String videoId = 'aaaaaaaaaaa',
     Size size = const Size(412, 2000),
-  }) async {
-    tester.view.physicalSize = size;
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        recipeRepositoryProvider.overrideWithValue(RecipeRepository(recipes)),
-        screenAwakeProvider.overrideWithValue(screenAwake),
-        videoLauncherProvider.overrideWithValue(launcher),
-        settingsStoreProvider.overrideWithValue(settings),
-      ],
-      child: MaterialApp(home: CookingScreen(videoId: videoId)),
-    ));
-  }
+  }) => env.pump(tester, CookingScreen(videoId: videoId), size: size);
 
   testWidgets('材料（グループ付き）・人数・番号付きの工程を表示する', (tester) async {
     await pumpScreen(tester);
@@ -182,7 +73,7 @@ void main() {
     await tester.tap(find.text('動画を開く'));
     await tester.pump();
 
-    expect(launcher.opened, [('aaaaaaaaaaa', 72), ('aaaaaaaaaaa', 0)]);
+    expect(env.launcher.opened, [('aaaaaaaaaaa', 72), ('aaaaaaaaaaa', 0)]);
     // 時刻ボタンを押してもチェックは付かない
     expect(find.byIcon(Icons.check_box), findsNothing);
   });
@@ -198,8 +89,12 @@ void main() {
         return null;
       },
     );
-    addTearDown(() => tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null));
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
 
     await pumpScreen(tester);
     await tester.tap(find.text('コピー'));
@@ -209,13 +104,28 @@ void main() {
     expect(find.text('材料をコピーしました'), findsOneWidget);
   });
 
-  testWidgets('工程がなければ案内を出し、編集画面へ移れる', (tester) async {
+  testWidgets('工程がなければ案内を出し、編集画面へ移れる。ステップモードは出さない', (tester) async {
     await pumpScreen(tester, videoId: 'nosteps0000');
 
     expect(find.text('工程が見つかりませんでした'), findsOneWidget);
-    await tester.tap(find.text('概要欄を編集して追加'));
+    expect(find.text('ステップモードで開始'), findsNothing);
+    await tester.tap(find.text('編集して追加'));
     await tester.pumpAndSettle();
-    expect(find.text('概要欄を編集'), findsOneWidget);
+    expect(find.text('レシピを編集'), findsOneWidget);
+  });
+
+  testWidgets('ステップモードは、まだチェックしていない最初の工程から始まる', (tester) async {
+    await pumpScreen(tester);
+    await tester.tap(find.text('大根を切る'));
+    await tester.pump();
+
+    await tester.tap(find.text('ステップモードで開始'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(StepModeScreen), findsOneWidget);
+    expect(find.text('手順 2 / 2'), findsOneWidget);
+    // ステップモードの下でも画面のスリープは止めたまま
+    expect(env.screenAwake.enabled, isTrue);
   });
 
   testWidgets('文字サイズを変えると表示に反映され、設定が保存される', (tester) async {
@@ -233,57 +143,43 @@ void main() {
     for (final text in ['豚バラ肉', '2人分', '動画を開く', '1:12', '概要欄の全文']) {
       expect(scaled(text), 17 * 1.5, reason: text);
     }
-    expect(settings.values[cookingFontSizeKey], 'extraLarge');
+    expect(env.settings.values[cookingFontSizeKey], 'extraLarge');
   });
 
   testWidgets('開いている間だけ画面のスリープを止める', (tester) async {
     await pumpScreen(tester);
-    expect(screenAwake.enabled, isTrue);
+    expect(env.screenAwake.enabled, isTrue);
 
     await tester.pumpWidget(const SizedBox());
-    expect(screenAwake.enabled, isFalse);
+    expect(env.screenAwake.enabled, isFalse);
   });
 
-  testWidgets('保存ボタンを連打しても、編集画面だけが閉じる', (tester) async {
-    final repo = InMemoryRecipeRepository(recipes);
-    tester.view.physicalSize = const Size(412, 2000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        recipeRepositoryProvider.overrideWithValue(repo),
-        screenAwakeProvider.overrideWithValue(screenAwake),
-        videoLauncherProvider.overrideWithValue(launcher),
-        settingsStoreProvider.overrideWithValue(settings),
-      ],
-      child: const MaterialApp(home: CookingScreen(videoId: 'aaaaaaaaaaa')),
-    ));
+  testWidgets('編集して材料が変わったら、チェックは外れる', (tester) async {
+    await pumpScreen(tester);
+    await tester.tap(find.text('豚バラ肉'));
+    await tester.pump();
+    expect(find.byIcon(Icons.check_box), findsOneWidget);
 
-    await tester.tap(find.byTooltip('概要欄を編集'));
+    await tester.tap(find.byTooltip('レシピを編集'));
     await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '材料'), '鶏肉 300g');
     await tester.tap(find.byTooltip('保存'));
-    await tester.tap(find.byTooltip('保存'), warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    expect(repo.putCount, 1);
-    expect(find.text('概要欄を編集'), findsNothing);
-    expect(find.byType(CookingScreen), findsOneWidget);
+    expect(find.text('鶏肉'), findsOneWidget);
+    expect(find.byIcon(Icons.check_box), findsNothing);
   });
 
   testWidgets('工程番号が2桁でも、大きな文字で折り返さない', (tester) async {
-    // テスト本体は疑似時間で動くので、Hive への実際の書き込みは runAsync の中で行う
-    await tester.runAsync(() => recipes.put(
-          'manysteps00',
-          recipe(
-            id: 'manysteps00',
-            steps: [for (var i = 1; i <= 12; i++) RecipeStep(text: '工程$i')],
-          ),
-        ));
-    settings.values[cookingFontSizeKey] = CookingFontSize.extraLarge.name;
+    env.settings.values[cookingFontSizeKey] = CookingFontSize.extraLarge.name;
     tester.platformDispatcher.textScaleFactorTestValue = 1.3;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-    await pumpScreen(tester, videoId: 'manysteps00', size: const Size(360, 4000));
+    await pumpScreen(
+      tester,
+      videoId: 'manysteps00',
+      size: const Size(360, 4000),
+    );
 
     final oneDigit = tester.getSize(find.text('9')).height;
     expect(tester.getSize(find.text('12')).height, oneDigit);
@@ -299,12 +195,16 @@ void main() {
     cases.forEach((name, c) {
       for (final fontSize in CookingFontSize.values) {
         testWidgets('$name / ${fontSize.label}', (tester) async {
-          settings.values[cookingFontSizeKey] = fontSize.name;
+          env.settings.values[cookingFontSizeKey] = fontSize.name;
           tester.platformDispatcher.textScaleFactorTestValue = c.$2;
           addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
           await pumpScreen(tester, size: c.$1);
-          await tester.fling(find.byType(ListView), const Offset(0, -3000), 3000);
+          await tester.fling(
+            find.byType(ListView),
+            const Offset(0, -3000),
+            3000,
+          );
           await tester.pumpAndSettle();
 
           expect(tester.takeException(), isNull);
@@ -320,17 +220,9 @@ void main() {
   });
 
   test('formatIngredientsForCopy は人数がなければ見出しだけにする', () {
-    final r = Recipe(
-      videoId: 'x',
-      title: 't',
-      channelTitle: 'c',
-      thumbnailUrl: null,
-      rawDescription: '',
+    final r = sampleRecipe(
       ingredients: const [Ingredient(name: '塩')],
-      steps: const [],
       servings: null,
-      addedAt: DateTime(2026),
-      parserVersion: 1,
     );
     expect(formatIngredientsForCopy(r), '材料\n塩');
   });
