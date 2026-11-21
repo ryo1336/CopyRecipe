@@ -60,10 +60,25 @@ void main() {
     expect(find.byIcon(Icons.check_box_outline_blank), findsNothing);
     expect(find.byIcon(Icons.check_box), findsNothing);
 
-    await tester.tap(find.text('豚バラ肉'));
-    await tester.tap(find.text('大根を切る'));
-    await tester.pump();
-    expect(find.byType(AnimatedOpacity), findsOneWidget); // 上のバーのタイトルだけ
+    // 行にはタップの受け口がなく、薄くする表示もない
+    for (final text in ['豚バラ肉', '大根を切る']) {
+      for (final type in [InkWell, GestureDetector, Opacity, AnimatedOpacity]) {
+        expect(
+          find.ancestor(of: find.text(text), matching: find.byType(type)),
+          findsNothing,
+          reason: '$text / $type',
+        );
+      }
+    }
+  });
+
+  testWidgets('工程は「手順N 本文」の1つの項目として読み上げる', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpScreen(tester);
+
+    expect(find.bySemanticsLabel('手順1 大根を切る'), findsOneWidget);
+    expect(find.bySemanticsLabel('手順2 豚肉を炒める'), findsOneWidget);
+    semantics.dispose();
   });
 
   testWidgets('時刻ボタンでその時刻から、「動画を開く」で最初から動画を開く', (tester) async {

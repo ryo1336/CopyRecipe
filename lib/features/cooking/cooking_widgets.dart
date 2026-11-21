@@ -99,15 +99,18 @@ class RecipeRow extends StatelessWidget {
 }
 
 /// 材料の一覧（グループ見出し付き）。料理中画面の材料欄に使う
-class IngredientList extends ConsumerWidget {
-  const IngredientList({super.key, required this.ingredients});
+class IngredientList extends StatelessWidget {
+  const IngredientList({
+    super.key,
+    required this.ingredients,
+    required this.styles,
+  });
 
   final List<Ingredient> ingredients;
+  final CookingStyles styles;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final styles = CookingStyles.of(context, ref);
-
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -117,7 +120,7 @@ class IngredientList extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 12, bottom: 4),
               child: Text(group.name!, style: styles.group),
             ),
-          for (final (_, ingredient) in group.items)
+          for (final ingredient in group.items)
             _IngredientRow(ingredient: ingredient, styles: styles),
         ],
       ],

@@ -142,7 +142,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
             if (recipe.ingredients.isEmpty)
               _NotFound(message: '材料が見つかりませんでした', styles: styles)
             else
-              IngredientList(ingredients: recipe.ingredients),
+              IngredientList(ingredients: recipe.ingredients, styles: styles),
             const SizedBox(height: 24),
 
             // 作り方
@@ -304,30 +304,44 @@ class _StepRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 番号は丸い札にして、工程の切れ目を目で追いやすくする。
-            // 2桁以上の番号や大きな文字でも折り返さないよう、幅は最小値だけ決める
-            Container(
-              constraints: BoxConstraints(
-                minWidth: 28 * styles.scale,
-                minHeight: 28 * styles.scale,
-              ),
-              margin: const EdgeInsets.only(right: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(14 * styles.scale),
-              ),
-              child: Text(
-                '$number',
-                style: styles.amount.copyWith(
-                  fontSize: 15,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+            Expanded(
+              // 番号と本文は「手順1 …」の1つの項目として読み上げる（時刻のボタンは別）
+              child: Semantics(
+                label: '手順$number ${step.text}',
+                excludeSemantics: true,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 番号は丸い札にして、工程の切れ目を目で追いやすくする。
+                    // 2桁以上の番号や大きな文字でも折り返さないよう、幅は最小値だけ決める
+                    Container(
+                      constraints: BoxConstraints(
+                        minWidth: 28 * styles.scale,
+                        minHeight: 28 * styles.scale,
+                      ),
+                      margin: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(14 * styles.scale),
+                      ),
+                      child: Text(
+                        '$number',
+                        style: styles.amount.copyWith(
+                          fontSize: 15,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
+                        softWrap: false,
+                      ),
+                    ),
+                    Expanded(child: Text(step.text, style: styles.body)),
+                  ],
                 ),
-                softWrap: false,
               ),
             ),
-            Expanded(child: Text(step.text, style: styles.body)),
             if (onOpenVideo != null)
               TextButton.icon(
                 onPressed: onOpenVideo,
