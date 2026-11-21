@@ -1,9 +1,14 @@
-import 'package:copy_recipe/models/video_model.dart';
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import "package:hive/hive.dart";
+import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'data/legacy_migration.dart';
+import 'data/recipe_repository.dart';
+import 'models/ingredient.dart';
+import 'models/recipe.dart';
+import 'models/recipe_step.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
   // フラッターエンジンの初期化(非同期処理を行う前に必要)
@@ -12,10 +17,16 @@ void main() async {
 
   // Hive設定
   Hive.init(appDir.path);
-  Hive.registerAdapter(VideoAdapter());
-  await Hive.openBox<Video>('Videos');
+  Hive.registerAdapter(RecipeAdapter());
+  Hive.registerAdapter(IngredientAdapter());
+  Hive.registerAdapter(RecipeStepAdapter());
+  final recipes = await Hive.openBox<Recipe>(recipesBoxName);
 
-  runApp(ProviderScope(child: const MainApp()));
+  // 旧形式のデータの移行と、古い版の抽出処理で作ったレシピの再抽出
+  await migrateLegacyVideos(recipes);
+  await RecipeRepository(recipes).reparseOutdated();
+
+  runApp(const ProviderScope(child: MainApp()));
 }
 
 class MainApp extends StatelessWidget {
@@ -23,9 +34,9 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const HomeScreen(),
+      home: HomeScreen(),
     );
   }
 }

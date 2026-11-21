@@ -1,25 +1,25 @@
-import 'package:copy_recipe/providers/video_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/video_model.dart';
+import 'package:copy_recipe/models/recipe.dart';
+import 'package:copy_recipe/providers/recipes_provider.dart';
 
 /// ホーム画面に表示するレシピウィジェット
 class RecipeTile extends ConsumerWidget {
-  final Video video;
+  final Recipe recipe;
   final VoidCallback onTap;
 
   const RecipeTile({
     super.key,
-    required this.video,
+    required this.recipe,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(videoProvider.notifier);
+    final notifier = ref.read(recipesProvider.notifier);
     
     return Dismissible(
-      key: Key(video.id),
+      key: Key(recipe.videoId),
       background: Container(
         color: Colors.red,
         alignment: Alignment.centerRight,
@@ -27,9 +27,9 @@ class RecipeTile extends ConsumerWidget {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       onDismissed: (direction) {
-        notifier.deleteId(video.id);
+        notifier.delete(recipe.videoId);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${video.title} を削除しました')),
+          SnackBar(content: Text('${recipe.title} を削除しました')),
         );
       },
       child: Card(
@@ -40,17 +40,12 @@ class RecipeTile extends ConsumerWidget {
           child: Row(
             children: [
               // サムネイル画像
-              Image(
-                width: 150,
-                height: 84,
-                fit: BoxFit.cover,
-                image: NetworkImage(video.thumbnailUrl),
-              ),
+              _Thumbnail(url: recipe.thumbnailUrl),
               const SizedBox(width: 5.0),
               // 動画タイトル
               Expanded(
                 child: Text(
-                  video.title,
+                  recipe.title,
                   style: const TextStyle(
                     color: Colors.black,
                     fontSize: 12.0,
@@ -63,6 +58,36 @@ class RecipeTile extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// サムネイル。URL がない場合や読み込みに失敗した場合は代わりのアイコンを出す
+class _Thumbnail extends StatelessWidget {
+  const _Thumbnail({required this.url});
+
+  final String? url;
+
+  static const _width = 150.0;
+  static const _height = 84.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = Container(
+      width: _width,
+      height: _height,
+      color: Colors.black12,
+      alignment: Alignment.center,
+      child: const Icon(Icons.restaurant, color: Colors.black38),
+    );
+    if (url == null) return placeholder;
+    return Image.network(
+      url!,
+      width: _width,
+      height: _height,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => placeholder,
+      loadingBuilder: (_, child, progress) => progress == null ? child : placeholder,
     );
   }
 }
