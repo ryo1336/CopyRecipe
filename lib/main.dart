@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'data/legacy_migration.dart';
 import 'data/recipe_repository.dart';
+import 'features/cooking/cooking_settings.dart';
 import 'models/ingredient.dart';
 import 'models/recipe.dart';
 import 'models/recipe_step.dart';
@@ -21,6 +22,7 @@ void main() async {
   Hive.registerAdapter(IngredientAdapter());
   Hive.registerAdapter(RecipeStepAdapter());
   final recipes = await Hive.openBox<Recipe>(recipesBoxName);
+  await Hive.openBox<dynamic>(settingsBoxName);
 
   // 旧形式のデータの移行と、古い版の抽出処理で作ったレシピの再抽出
   await migrateLegacyVideos(recipes);

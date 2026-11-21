@@ -64,3 +64,11 @@ List<Chapter> parseChapters(List<String> lines) {
   }
   return chapters.length >= 2 ? chapters : const [];
 }
+
+/// 秒数を「1:05」「1:02:03」の形にする
+String formatTimestamp(int seconds) {
+  final h = seconds ~/ 3600;
+  final m = (seconds % 3600) ~/ 60;
+  final s = (seconds % 60).toString().padLeft(2, '0');
+  return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$s' : '$m:$s';
+}

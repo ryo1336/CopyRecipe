@@ -1,6 +1,6 @@
 import 'package:copy_recipe/models/recipe.dart';
 import 'package:copy_recipe/screens/add_url_screen.dart';
-import 'package:copy_recipe/screens/recipe_screen.dart';
+import 'package:copy_recipe/features/cooking/cooking_screen.dart';
 import 'package:copy_recipe/widgets/recipe_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,7 +19,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _openRecipe(String videoId) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => RecipeScreen(videoId: videoId)),
+      MaterialPageRoute(builder: (_) => CookingScreen(videoId: videoId)),
     );
   }
 
