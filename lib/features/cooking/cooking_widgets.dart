@@ -202,19 +202,134 @@ class _IngredientRow extends StatelessWidget {
         children: [
           CheckIcon(checked: checked, scale: styles.scale),
           const SizedBox(width: 8),
-          Expanded(child: Text(ingredient.name, style: styles.body)),
-          if (ingredient.amount != null) ...[
-            const SizedBox(width: 12),
-            Flexible(
+          Expanded(
+            child: ingredient.amount == null
+                ? Text(ingredient.name, style: styles.body)
+                : _NameAndAmount(
+                    name: ingredient.name,
+                    amount: ingredient.amount!,
+                    styles: styles,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 「材料名 ・・・・・ 分量」の1行。
+///
+/// 分量を右端にそろえ、間を点線でつなぐ。行ごとに分量の位置がばらつかないので、
+/// 離れた場所からでも材料名から分量へ目で追える。
+/// 材料名と分量の実際の幅を測って割り当てる（[splitNameAndAmount]）ので、
+/// 収まるときは折り返さず、残りはすべて点線になる。
+class _NameAndAmount extends StatelessWidget {
+  const _NameAndAmount({
+    required this.name,
+    required this.amount,
+    required this.styles,
+  });
+
+  final String name;
+  final String amount;
+  final CookingStyles styles;
+
+  static const _gap = 8.0;
+
+  /// 1行で書いたときの幅（端数で折り返さないよう切り上げる）
+  static double _measure(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: DefaultTextStyle.of(context).style.merge(style),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width.ceilToDouble() + 1;
+    painter.dispose();
+    return width;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dotColor = Theme.of(context).colorScheme.outlineVariant;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final (nameWidth, amountWidth) = splitNameAndAmount(
+          available: constraints.maxWidth - _gap * 2 - minDotLeaderWidth,
+          nameWidth: _measure(context, name, styles.body),
+          amountWidth: _measure(context, amount, styles.amount),
+        );
+        return Row(
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: nameWidth),
+              child: Text(name, style: styles.body),
+            ),
+            const SizedBox(width: _gap),
+            Expanded(
+              child: CustomPaint(
+                size: const Size.fromHeight(4),
+                painter: _DotLeaderPainter(dotColor),
+              ),
+            ),
+            const SizedBox(width: _gap),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: amountWidth),
               child: Text(
-                ingredient.amount!,
+                amount,
                 style: styles.amount,
                 textAlign: TextAlign.end,
               ),
             ),
           ],
-        ],
-      ),
+        );
+      },
     );
   }
+}
+
+/// 点線に最低限残す幅
+const minDotLeaderWidth = 12.0;
+
+/// 材料名と分量に割り当てる最大の幅を決める。
+///
+/// - 両方が [available] に収まるなら、どちらも1行の幅のまま（残りは点線）
+/// - 収まらなければ分量を優先し、材料名の残りを分量に回す。
+///   ただし分量が長すぎて材料名が潰れないよう、分量は最低でも半分までは取れるようにする
+/// - 2つの合計は [available] を超えないので、狭い画面でも行からはみ出さない
+@visibleForTesting
+(double, double) splitNameAndAmount({
+  required double available,
+  required double nameWidth,
+  required double amountWidth,
+}) {
+  final space = available < 0 ? 0.0 : available;
+  if (nameWidth + amountWidth <= space) return (nameWidth, amountWidth);
+  final rest = space - nameWidth;
+  final amount = amountWidth.clamp(0.0, rest > space / 2 ? rest : space / 2);
+  return (space - amount, amount);
+}
+
+class _DotLeaderPainter extends CustomPainter {
+  const _DotLeaderPainter(this.color);
+
+  final Color color;
+
+  static const _gap = 6.0;
+  static const _radius = 1.3;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final y = size.height / 2;
+    for (var x = _radius; x < size.width; x += _gap) {
+      canvas.drawCircle(Offset(x, y), _radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotLeaderPainter old) => old.color != color;
 }

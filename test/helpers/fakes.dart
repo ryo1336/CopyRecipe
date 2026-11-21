@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:copy_recipe/data/recipe_repository.dart';
+import 'package:copy_recipe/data/youtube_api.dart';
 import 'package:copy_recipe/features/cooking/cooking_settings.dart';
 import 'package:copy_recipe/features/cooking/platform_services.dart';
 import 'package:copy_recipe/models/ingredient.dart';
@@ -7,6 +10,7 @@ import 'package:copy_recipe/models/recipe_step.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 
 class FakeScreenAwake implements ScreenAwake {
   bool enabled = false;
@@ -76,6 +80,26 @@ class InMemoryRecipeRepository implements RecipeRepository {
   Future<void> delete(String videoId) async => _recipes.remove(videoId);
 }
 
+/// 動画の取得を、テストから好きなときに終わらせられる YouTube API
+class PendingYoutubeApi extends YoutubeApi {
+  PendingYoutubeApi() : super(client: http.Client(), apiKey: '');
+
+  final requests = <String, Completer<YoutubeVideo>>{};
+
+  @override
+  Future<YoutubeVideo> fetchVideo(String videoId) =>
+      (requests[videoId] = Completer<YoutubeVideo>()).future;
+}
+
+/// 材料と作り方のある概要欄の動画
+YoutubeVideo recipeVideo(String id) => YoutubeVideo(
+  id: id,
+  title: '動画 $id',
+  channelTitle: 'ch',
+  thumbnailUrl: null,
+  description: '【材料】\n豚肉 200g\n\n【作り方】\n1. 焼く',
+);
+
 /// テスト用のレシピ
 Recipe sampleRecipe({
   String id = 'aaaaaaaaaaa',
@@ -110,10 +134,11 @@ Recipe sampleRecipe({
 
 /// 画面をテストするための環境（フェイク一式と、それを差し込んだ ProviderScope）
 class TestEnv {
-  TestEnv(Iterable<Recipe> recipes)
+  TestEnv(Iterable<Recipe> recipes, {this.youtubeApi})
     : repository = InMemoryRecipeRepository(recipes);
 
   final InMemoryRecipeRepository repository;
+  final YoutubeApi? youtubeApi;
   final screenAwake = FakeScreenAwake();
   final launcher = FakeVideoLauncher();
   final settings = FakeSettingsStore();
@@ -124,6 +149,7 @@ class TestEnv {
       screenAwakeProvider.overrideWithValue(screenAwake),
       videoLauncherProvider.overrideWithValue(launcher),
       settingsStoreProvider.overrideWithValue(settings),
+      if (youtubeApi != null) youtubeApiProvider.overrideWithValue(youtubeApi!),
     ],
     child: MaterialApp(home: home),
   );

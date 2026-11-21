@@ -24,6 +24,11 @@ class CookingScreen extends ConsumerStatefulWidget {
 
 class _CookingScreenState extends ConsumerState<CookingScreen> {
   late final ScreenAwake _screenAwake;
+  final _scroll = ScrollController();
+
+  /// 本文の大きなタイトルが隠れたら、上のバーにタイトルを出す
+  bool _showBarTitle = false;
+  static const _barTitleOffset = 80.0;
 
   @override
   void initState() {
@@ -31,11 +36,16 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
     // 料理中に画面が消えないよう、開いている間はスリープを止める
     _screenAwake = ref.read(screenAwakeProvider);
     _screenAwake.enable();
+    _scroll.addListener(() {
+      final show = _scroll.offset > _barTitleOffset;
+      if (show != _showBarTitle) setState(() => _showBarTitle = show);
+    });
   }
 
   @override
   void dispose() {
     _screenAwake.disable();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -55,7 +65,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
     final recipe = ref.watch(recipeByIdProvider(widget.videoId));
     if (recipe == null) {
       return Scaffold(
-        appBar: AppBar(backgroundColor: Colors.amber),
+        appBar: AppBar(),
         body: const Center(child: Text('このレシピは削除されました')),
       );
     }
@@ -69,8 +79,18 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.amber,
-        title: Text(recipe.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        // 最初は本文の大きなタイトルと重なるので見せず、スクロールしたら出す。
+        // 読み上げでは常に画面の名前として読めるようにしておく
+        title: AnimatedOpacity(
+          opacity: _showBarTitle ? 1 : 0,
+          duration: const Duration(milliseconds: 150),
+          alwaysIncludeSemantics: true,
+          child: Text(
+            recipe.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         actions: [
           PopupMenuButton<CookingFontSize>(
             icon: const Icon(Icons.format_size),
@@ -101,6 +121,7 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
       ),
       body: CookingTextScale(
         child: ListView(
+          controller: _scroll,
           // 下のボタンがなくなり本文が画面の下端まで届くので、
           // ホームインジケーターなどの安全領域の分も余白に足す
           padding: EdgeInsets.fromLTRB(
@@ -256,11 +277,21 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 離れた場所からでも区切りが分かるよう、見出しの左に基調色の縦線を置く
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Expanded(child: Text('■ $title', style: styles.section)),
+          Container(
+            width: 4,
+            height: 22 * styles.scale,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(title, style: styles.section)),
           if (trailing != null) trailing!,
         ],
       ),
@@ -298,12 +329,27 @@ class _StepRow extends StatelessWidget {
           children: [
             CheckIcon(checked: checked, scale: styles.scale),
             const SizedBox(width: 8),
+            // 番号は丸い札にして、工程の切れ目を目で追いやすくする。
             // 2桁以上の番号や大きな文字でも折り返さないよう、幅は最小値だけ決める
-            ConstrainedBox(
-              constraints: BoxConstraints(minWidth: 28 * styles.scale),
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text('$number', style: styles.amount, softWrap: false),
+            Container(
+              constraints: BoxConstraints(
+                minWidth: 28 * styles.scale,
+                minHeight: 28 * styles.scale,
+              ),
+              margin: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14 * styles.scale),
+              ),
+              child: Text(
+                '$number',
+                style: styles.amount.copyWith(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                softWrap: false,
               ),
             ),
             Expanded(child: Text(step.text, style: styles.body)),

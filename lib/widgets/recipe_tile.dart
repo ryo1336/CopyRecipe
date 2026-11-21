@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:copy_recipe/models/recipe.dart';
 import 'package:copy_recipe/providers/recipes_provider.dart';
 
-/// ホーム画面に表示するレシピウィジェット
+/// レシピ一覧の1件。左にスワイプすると削除する（通知から元に戻せる）
 class RecipeTile extends ConsumerWidget {
   final Recipe recipe;
   final VoidCallback onTap;
@@ -13,14 +13,27 @@ class RecipeTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(recipesProvider.notifier);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     return Dismissible(
       key: Key(recipe.videoId),
+      direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red,
+        decoration: BoxDecoration(
+          color: scheme.errorContainer,
+          borderRadius: BorderRadius.circular(16),
+        ),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20.0),
-        child: const Icon(Icons.delete, color: Colors.white),
+        padding: const EdgeInsets.only(right: 24),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline, color: scheme.onErrorContainer),
+            const SizedBox(width: 4),
+            Text('削除', style: TextStyle(color: scheme.onErrorContainer)),
+          ],
+        ),
       ),
       onDismissed: (direction) {
         notifier.delete(recipe.videoId);
@@ -38,30 +51,65 @@ class RecipeTile extends ConsumerWidget {
           );
       },
       child: Card(
-        margin: EdgeInsets.all(5.0),
-        color: Color(0xFFFFE8CD),
-        child: GestureDetector(
+        child: InkWell(
           onTap: onTap,
-          child: Row(
-            children: [
-              // サムネイル画像
-              _Thumbnail(url: recipe.thumbnailUrl),
-              const SizedBox(width: 5.0),
-              // 動画タイトル
-              Expanded(
-                child: Text(
-                  recipe.title,
-                  style: const TextStyle(color: Colors.black, fontSize: 12.0),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 3,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: _Thumbnail(url: recipe.thumbnailUrl),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        recipe.title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        recipe.channelTitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _summary(recipe),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  /// 「材料 8 · 工程 5 · 2人分」のような概要
+  static String _summary(Recipe recipe) => [
+    '材料 ${recipe.ingredients.length}',
+    '工程 ${recipe.steps.length}',
+    ?recipe.servings,
+  ].join(' · ');
 }
 
 /// サムネイル。URL がない場合や読み込みに失敗した場合は代わりのアイコンを出す
@@ -70,17 +118,19 @@ class _Thumbnail extends StatelessWidget {
 
   final String? url;
 
-  static const _width = 150.0;
-  static const _height = 84.0;
+  // YouTube のサムネイルに合わせた 16:9
+  static const _width = 128.0;
+  static const _height = 72.0;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final placeholder = Container(
       width: _width,
       height: _height,
-      color: Colors.black12,
+      color: scheme.surfaceContainerHighest,
       alignment: Alignment.center,
-      child: const Icon(Icons.restaurant, color: Colors.black38),
+      child: Icon(Icons.restaurant, color: scheme.onSurfaceVariant),
     );
     if (url == null) return placeholder;
     return Image.network(
