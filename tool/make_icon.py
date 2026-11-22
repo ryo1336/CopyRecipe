@@ -3,7 +3,8 @@
 使い方: python3 tool/make_icon.py assets/icon && dart run flutter_launcher_icons
 
 icon.png            : iOS・Android 共通（背景込み、角丸なし）
-icon_foreground.png : Android のアダプティブアイコンの前景（透明背景、図柄を 72% に縮めて中央に置く）
+icon_foreground.png : Android のアダプティブアイコンの前景（透明背景）。端が切り取られないよう、
+                      flutter_launcher_icons が生成する XML の inset（16%）で縮めて表示するので、ここでは縮めない
 """
 import sys
 from PIL import Image, ImageDraw
@@ -39,8 +40,7 @@ full = Image.new('RGBA', (N, N), TOMATO)
 draw_mark(ImageDraw.Draw(full), N / 1024, 0, 0)
 full.resize((1024, 1024), Image.LANCZOS).convert('RGB').save(f'{OUT}/icon.png')
 
-# アダプティブアイコンは端が切り取られるので、図柄を 72% に縮めて中央に置く
+# アダプティブアイコンの前景は、icon.png と同じ大きさで背景だけを透明にして描く
 fg = Image.new('RGBA', (N, N), (0, 0, 0, 0))
-k = 0.72
-draw_mark(ImageDraw.Draw(fg), N / 1024 * k, int(N * (1 - k) / 2), int(N * (1 - k) / 2))
+draw_mark(ImageDraw.Draw(fg), N / 1024, 0, 0)
 fg.resize((1024, 1024), Image.LANCZOS).save(f'{OUT}/icon_foreground.png')
