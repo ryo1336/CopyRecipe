@@ -53,6 +53,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final recipes = ref.watch(recipesProvider);
+    // 一覧が空になると入力欄も消えるので、語を残さない。
+    // 残すと、次に追加したレシピが見えない入力欄の語で隠れてしまう
+    ref.listen(recipesProvider, (_, next) {
+      if (next.isEmpty) _filterController.clear();
+    });
 
     return Scaffold(
       appBar: AppBar(

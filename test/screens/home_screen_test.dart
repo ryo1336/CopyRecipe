@@ -192,4 +192,21 @@ void main() {
     expect(find.byType(HowToScreen), findsOneWidget);
     expect(find.text('レシピを追加する'), findsOneWidget);
   });
+
+  testWidgets('絞り込み中にレシピをすべて消すと、絞り込みの語も消える', (tester) async {
+    final env = TestEnv([sampleRecipe(id: 'only0000000', title: '豚バラ大根')]);
+    await env.pump(tester, const HomeScreen(), size: const Size(412, 915));
+
+    await tester.enterText(find.byType(TextField), '大根');
+    await tester.pump();
+    await tester.drag(find.text('豚バラ大根'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('レシピを追加しましょう'), findsOneWidget);
+
+    await tester.tap(find.text('元に戻す'));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, isEmpty);
+    expect(find.text('豚バラ大根'), findsOneWidget);
+  });
 }

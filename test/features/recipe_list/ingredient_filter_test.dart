@@ -46,4 +46,25 @@ void main() {
   test('当たらなければ空', () {
     expect(ids('鶏肉'), isEmpty);
   });
+
+  test('半角カタカナの材料名にも当たる（濁点・半濁点は前の文字と合わせる）', () {
+    final halfwidth = sampleRecipe(
+      id: 'halfwidth00',
+      ingredients: const [
+        Ingredient(name: 'ﾀﾏﾈｷﾞ'),
+        Ingredient(name: 'ﾊﾟﾌﾟﾘｶ'),
+        Ingredient(name: 'ｶﾞｰﾘｯｸ'),
+        Ingredient(name: 'ﾂﾞｹ'),
+      ],
+    );
+    List<String> idsOf(String query) =>
+        filterByIngredients([halfwidth], query).map((r) => r.videoId).toList();
+
+    expect(idsOf('たまねぎ'), ['halfwidth00']);
+    expect(idsOf('パプリカ'), ['halfwidth00']);
+    expect(idsOf('がーりっく'), ['halfwidth00']);
+    expect(idsOf('づけ'), ['halfwidth00']);
+    expect(idsOf('ﾀﾏﾈｷﾞ ﾊﾟﾌﾟ'), ['halfwidth00']);
+    expect(idsOf('たまねき'), isEmpty);
+  });
 }
