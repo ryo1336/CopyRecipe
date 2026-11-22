@@ -161,7 +161,7 @@ lib/
   parser/         normalize.dart, sections.dart, ingredients.dart, steps.dart, chapters.dart, recipe_parser.dart
   data/           youtube_api.dart, recipe_repository.dart  ← Provider 経由で渡す
   features/
-    recipe_list/
+    recipe_list/  ingredient_filter.dart
     add_recipe/
     cooking/      cooking_screen.dart, cooking_widgets.dart, cooking_settings.dart
 test/
@@ -217,3 +217,9 @@ test/
 
 - **材料・工程のチェックをやめる**。料理中画面は読むための画面に絞り、行のタップでのチェック、チェック済みの行を薄くする表示、「すべてのチェックを外す」ボタンを削除した。
 - 行の高さ（52pt 以上）は、離れた場所から行の区切りが分かるよう残す。チェックボックスの分だけ材料名・分量・工程の文字に使える幅が広がった。
+
+### 材料での絞り込み・メニュー・アイコン（2026-11-23）
+
+- **一覧を材料名で絞り込めるようにした**（#18）。一覧の上の入力欄に入れた語を空白で区切り、すべてを材料名の一部に含むレシピだけを出す。全角・半角、大文字・小文字、カタカナ・ひらがなの違いは無視する（漢字との表記の揺れは扱わない）。処理は `lib/features/recipe_list/ingredient_filter.dart` の純粋な関数。
+- **一覧の AppBar に「使い方」「ライセンス」のメニューを付けた**（#9・#10）。使い方は README にも書いた。
+- **アプリアイコンを、トマト色の背景に白いレシピカードと再生ボタンを重ねた図柄にした**（#20）。`tool/make_icon.py` で描き、`flutter_launcher_icons` で各サイズを作る。

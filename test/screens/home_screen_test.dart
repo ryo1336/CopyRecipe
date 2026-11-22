@@ -2,6 +2,8 @@ import 'package:copy_recipe/data/app_exception.dart';
 import 'package:copy_recipe/features/cooking/cooking_screen.dart';
 import 'package:copy_recipe/screens/add_recipe_sheet.dart';
 import 'package:copy_recipe/screens/home_screen.dart';
+import 'package:copy_recipe/screens/how_to_screen.dart';
+import 'package:copy_recipe/models/ingredient.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,7 +99,10 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byType(TextField),
+      find.descendant(
+        of: find.byType(AddRecipeSheet),
+        matching: find.byType(TextField),
+      ),
       'https://youtu.be/vvvvvvvvvvv',
     );
     await tester.tap(find.text('追加する'));
@@ -147,5 +152,61 @@ void main() {
     // 例外が呼び出し元まで伝わってから通知が出るので、少し時間を進める
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('動画が見つかりませんでした'), findsOneWidget);
+  });
+
+  testWidgets('材料名を入れると、その材料を使うレシピだけに絞り込める', (tester) async {
+    final env = TestEnv([
+      sampleRecipe(id: 'daikon00000', title: '豚バラ大根'),
+      sampleRecipe(
+        id: 'chicken0000',
+        title: '鶏の照り焼き',
+        ingredients: const [Ingredient(name: '鶏もも肉', amount: '1枚')],
+      ),
+    ]);
+    await env.pump(tester, const HomeScreen(), size: const Size(412, 915));
+
+    await tester.enterText(find.byType(TextField), '鶏');
+    await tester.pump();
+    expect(find.text('鶏の照り焼き'), findsOneWidget);
+    expect(find.text('豚バラ大根'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'えび');
+    await tester.pump();
+    expect(find.text('「えび」を使うレシピはありません'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('絞り込みを解除'));
+    await tester.pump();
+    expect(find.text('鶏の照り焼き'), findsOneWidget);
+    expect(find.text('豚バラ大根'), findsOneWidget);
+  });
+
+  testWidgets('メニューから使い方を開ける', (tester) async {
+    final env = TestEnv([]);
+    await env.pump(tester, const HomeScreen(), size: const Size(412, 915));
+
+    await tester.tap(find.byTooltip('メニュー'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('使い方'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HowToScreen), findsOneWidget);
+    expect(find.text('レシピを追加する'), findsOneWidget);
+  });
+
+  testWidgets('絞り込み中にレシピをすべて消すと、絞り込みの語も消える', (tester) async {
+    final env = TestEnv([sampleRecipe(id: 'only0000000', title: '豚バラ大根')]);
+    await env.pump(tester, const HomeScreen(), size: const Size(412, 915));
+
+    await tester.enterText(find.byType(TextField), '大根');
+    await tester.pump();
+    await tester.drag(find.text('豚バラ大根'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('レシピを追加しましょう'), findsOneWidget);
+
+    await tester.tap(find.text('元に戻す'));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, isEmpty);
+    expect(find.text('豚バラ大根'), findsOneWidget);
   });
 }
